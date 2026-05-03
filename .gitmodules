@@ -1,3 +1,6 @@
 [submodule "Android-13/u-boot"]
 	path = Android-13/u-boot
 	url = https://github.com/VaillerTeeter/Rockchip-RK3588-u-boot
+[submodule "Android-13/rkbin"]
+	path = Android-13/rkbin
+	url = https://github.com/VaillerTeeter/Rockchip-RK3588-rkbin
