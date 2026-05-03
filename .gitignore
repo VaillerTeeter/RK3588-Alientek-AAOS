@@ -1,2 +1,6 @@
 # 密钥 / 环境变量（禁止提交到仓库）
 .env
+
+# GCC 工具链解压目录（体积过大，仅保留压缩包）
+Android-13/prebuilts/gcc/linux-x86/arm/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/
+Android-13/prebuilts/gcc/linux-x86/aarch64/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu/
