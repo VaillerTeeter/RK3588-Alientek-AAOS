@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up lint config
         run: cp .lintrc/docs/markdown/.markdownlint.json .markdownlint.json
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Lint YAML files
         uses: ibiqlik/action-yamllint@v3
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up C lint configs
         run: |
@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install C++ lint tools
         run: |
@@ -198,7 +198,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -294,7 +294,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -379,7 +379,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -439,7 +439,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -503,7 +503,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -560,7 +560,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -623,7 +623,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -671,7 +671,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check PowerShell files exist
         id: check-ps
@@ -718,7 +718,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -754,7 +754,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check shell files exist
         id: check-sh
@@ -802,7 +802,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Go files exist
         id: check-go
@@ -839,7 +839,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Kotlin files exist
         id: check-kt
@@ -901,7 +901,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check C# files exist
         id: check-cs
@@ -961,7 +961,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check PHP files exist
         id: check-php
@@ -1032,7 +1032,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Ruby files exist
         id: check-rb
@@ -1083,7 +1083,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Swift files exist
         id: check-swift
@@ -1116,7 +1116,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Dart files exist
         id: check-dart
@@ -1178,7 +1178,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Scala files exist
         id: check-scala
@@ -1241,7 +1241,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Lua files exist
         id: check-lua
@@ -1295,7 +1295,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check JSON files exist
         id: check-json
@@ -1347,7 +1347,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check XML files exist
         id: check-xml
@@ -1403,7 +1403,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check TOML files exist
         id: check-toml
@@ -1451,7 +1451,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check SQL files exist
         id: check-sql
@@ -1503,7 +1503,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -1556,7 +1556,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check GraphQL files exist
         id: check-graphql
@@ -1613,7 +1613,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check OpenAPI files exist
         id: check-openapi
@@ -1664,7 +1664,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Dockerfile files exist
         id: check-docker
@@ -1707,7 +1707,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Terraform files exist
         id: check-tf
@@ -1766,7 +1766,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Ansible files exist
         id: check-ansible
@@ -1813,7 +1813,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check Kubernetes manifest files exist
         id: check-k8s
@@ -1891,7 +1891,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check GitHub Actions files exist
         id: check-gha
@@ -1930,7 +1930,7 @@ jobs:
     name: R Lint (lintr + styler)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for R files
         id: check
@@ -1971,7 +1971,7 @@ jobs:
     name: Groovy Lint (CodeNarc via npm-groovy-lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Groovy files
         id: check
@@ -2004,7 +2004,7 @@ jobs:
     name: Elixir Lint (Credo + mix format)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Elixir files
         id: check
@@ -2043,7 +2043,7 @@ jobs:
     name: Haskell Lint (HLint + Fourmolu)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Haskell files
         id: check
@@ -2089,7 +2089,7 @@ jobs:
     name: Erlang Lint (Elvis)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Erlang files
         id: check
@@ -2121,7 +2121,7 @@ jobs:
     name: Perl Lint (Perl::Critic + perltidy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Perl files
         id: check
@@ -2158,7 +2158,7 @@ jobs:
     name: Julia Lint (JuliaFormatter)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Julia files
         id: check
@@ -2195,7 +2195,7 @@ jobs:
     name: Zig Lint (zig fmt + zig ast-check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Zig files
         id: check
@@ -2224,7 +2224,7 @@ jobs:
     name: Nim Lint (nimpretty + nim check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Nim files
         id: check
@@ -2261,7 +2261,7 @@ jobs:
     name: Crystal Lint (Ameba + crystal tool format)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Crystal files
         id: check
@@ -2300,7 +2300,7 @@ jobs:
     name: F# Lint (Fantomas + FSharpLint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for F# files
         id: check
@@ -2337,7 +2337,7 @@ jobs:
     name: Clojure Lint (clj-kondo + cljfmt)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Clojure files
         id: check
@@ -2383,7 +2383,7 @@ jobs:
     name: OCaml Lint (ocamlformat)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for OCaml files
         id: check
@@ -2420,7 +2420,7 @@ jobs:
     name: SCSS Lint (stylelint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for SCSS files
         id: check
@@ -2457,7 +2457,7 @@ jobs:
     name: Less Lint (stylelint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Less files
         id: check
@@ -2489,7 +2489,7 @@ jobs:
     name: Svelte Lint (ESLint + svelte-check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Svelte files
         id: check
@@ -2526,7 +2526,7 @@ jobs:
     name: Astro Lint (ESLint + astro check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Astro files
         id: check
@@ -2563,7 +2563,7 @@ jobs:
     name: Dotenv / INI Lint (dotenv-linter)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for .env files
         id: check
@@ -2590,7 +2590,7 @@ jobs:
     name: CSV Lint (csvlint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for CSV files
         id: check
@@ -2619,7 +2619,7 @@ jobs:
     name: Nix Lint (statix + deadnix + nixpkgs-fmt)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Nix files
         id: check
@@ -2652,7 +2652,7 @@ jobs:
     name: Docker Compose Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Docker Compose files
         id: check
@@ -2683,7 +2683,7 @@ jobs:
     name: Helm Charts Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Helm charts
         id: check
@@ -2721,7 +2721,7 @@ jobs:
     name: AWS CloudFormation Lint (cfn-lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for CloudFormation files
         id: check
@@ -2753,7 +2753,7 @@ jobs:
     name: Azure Bicep Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Bicep files
         id: check
@@ -2783,7 +2783,7 @@ jobs:
     name: GitLab CI Lint (yamllint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for GitLab CI files
         id: check
@@ -2814,7 +2814,7 @@ jobs:
     name: Jenkinsfile Lint (npm-groovy-lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Jenkinsfile
         id: check
@@ -2850,7 +2850,7 @@ jobs:
     name: CircleCI Config Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for CircleCI config
         id: check
@@ -2879,7 +2879,7 @@ jobs:
     name: Packer Lint (packer fmt + validate)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Packer files
         id: check
@@ -2915,7 +2915,7 @@ jobs:
     name: Kustomize Lint (kubectl kustomize)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Kustomize files
         id: check
@@ -2943,7 +2943,7 @@ jobs:
     name: Secret Scan (Gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -2960,7 +2960,7 @@ jobs:
     permissions:
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -2994,7 +2994,7 @@ jobs:
     name: Dependency Vulnerability Scan (Trivy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run Trivy filesystem scan
         run: |
@@ -3012,7 +3012,7 @@ jobs:
     name: Container Image Scan (Trivy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Dockerfile
         id: check
@@ -3054,7 +3054,7 @@ jobs:
     name: License Compliance Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -3094,7 +3094,7 @@ jobs:
     name: reStructuredText Lint (rstcheck + doc8)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for RST files
         id: check
@@ -3129,7 +3129,7 @@ jobs:
     name: AsciiDoc Lint (asciidoctor)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for AsciiDoc files
         id: check
@@ -3161,7 +3161,7 @@ jobs:
     name: LaTeX Lint (chktex + lacheck)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for LaTeX files
         id: check
@@ -3190,7 +3190,7 @@ jobs:
     name: Jupyter Notebook Lint (nbqa + nbformat)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Jupyter notebooks
         id: check
@@ -3231,7 +3231,7 @@ jobs:
     name: Makefile Lint (checkmake)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Makefiles
         id: check
@@ -3261,7 +3261,7 @@ jobs:
     name: CMake Lint (cmakelint + cmake-format)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for CMake files
         id: check
@@ -3298,7 +3298,7 @@ jobs:
     name: Bazel BUILD Lint (buildifier)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Bazel files
         id: check
@@ -3349,7 +3349,7 @@ jobs:
     name: Drone CI Lint (yamllint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Drone CI config
         id: check
@@ -3380,7 +3380,7 @@ jobs:
     name: Bitbucket Pipelines Lint (yamllint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Bitbucket Pipelines config
         id: check
@@ -3411,7 +3411,7 @@ jobs:
     name: Tekton Pipelines Lint (tekton-lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Tekton files
         id: check
@@ -3443,7 +3443,7 @@ jobs:
     name: Argo Workflows Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Argo Workflow files
         id: check
@@ -3477,7 +3477,7 @@ jobs:
     name: OPA / Rego Lint (opa fmt + opa check + conftest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Rego files
         id: check
@@ -3522,7 +3522,7 @@ jobs:
     name: Nginx Config Lint (nginx -t + gixy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Nginx configs
         id: check
@@ -3566,7 +3566,7 @@ jobs:
     name: Apache Config Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Apache configs
         id: check
@@ -3607,7 +3607,7 @@ jobs:
     name: Gherkin / Cucumber Lint (gherkin-lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for feature files
         id: check
@@ -3636,7 +3636,7 @@ jobs:
     name: Robot Framework Lint (robocop + robotidy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Robot Framework files
         id: check
@@ -3675,7 +3675,7 @@ jobs:
     name: EditorConfig Lint (editorconfig-checker)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for .editorconfig
         id: check
@@ -3703,7 +3703,7 @@ jobs:
     name: CUE Lint (cue vet + cue fmt)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for CUE files
         id: check
@@ -3738,7 +3738,7 @@ jobs:
     name: Dhall Lint (dhall lint + dhall format)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Dhall files
         id: check
@@ -3778,7 +3778,7 @@ jobs:
     name: KCL Lint (kcl fmt + kcl lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for KCL files
         id: check
@@ -3817,7 +3817,7 @@ jobs:
     name: AsyncAPI Lint (asyncapi CLI)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for AsyncAPI files
         id: check
@@ -3857,7 +3857,7 @@ jobs:
     name: Renovate Config Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Renovate config
         id: check
@@ -3894,7 +3894,7 @@ jobs:
     name: PlantUML Lint (syntax check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for PlantUML files
         id: check
@@ -3933,7 +3933,7 @@ jobs:
     name: Solidity Lint (solhint + slither)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Solidity files
         id: check
@@ -3982,7 +3982,7 @@ jobs:
     name: Ruff (Python Modern Linter)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for Python files
         id: check
@@ -4020,7 +4020,7 @@ jobs:
     name: Biome (JS/TS Unified Linter)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for JS/TS files
         id: check
@@ -4051,7 +4051,7 @@ jobs:
     name: Vale (Documentation Quality)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for doc files
         id: check
@@ -4089,7 +4089,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -4135,7 +4135,7 @@ jobs:
     name: Checkov (IaC Security)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for IaC files
         id: check
@@ -4169,7 +4169,7 @@ jobs:
     name: Knip (Dead Code Detection)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for package.json
         id: check
@@ -4213,7 +4213,7 @@ jobs:
     name: CSpell (Spelling Check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -4237,7 +4237,7 @@ jobs:
     name: YAML Lint Strict
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check for YAML files
         id: check
@@ -4271,7 +4271,7 @@ jobs:
     name: ls-lint (File Naming)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install ls-lint
         run: |
