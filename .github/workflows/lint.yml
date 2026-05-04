@@ -2206,7 +2206,7 @@ jobs:
 
       - name: Set up Zig
         if: steps.check.outputs.count != '0'
-        uses: mlugg/setup-zig@v1
+        uses: mlugg/setup-zig@v2
         with:
           version: "latest"
 
