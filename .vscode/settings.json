@@ -56,10 +56,6 @@
   // 显式声明远程 JSON Schema，避免 VS Code JSON 语言服务器报"不受信任"警告
   "json.schemas": [
     {
-      "url": "https://unpkg.com/knip@5/schema.json",
-      "fileMatch": [".lintrc/frontend/knip.json"]
-    },
-    {
       "url": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json",
       "fileMatch": [".lintrc/general/cspell.json"]
     }
@@ -94,9 +90,6 @@
   // Image Preview — 行号侧边栏图片预览高度（默认 100，适当调大）
   "gutterpreview.imagePreviewMaxHeight": 200,
 
-  // Path Intellisense — import 补全时自动附加文件扩展名（.ts / .json 等）
-  "path-intellisense.extensionOnImport": true,
-
   // ── 内置功能（无需插件）────────────────────────────────────
   // 括号对彩虹色（VS Code 1.67+ 内置）
   "editor.bracketPairColorization.enabled": true,
@@ -128,46 +121,11 @@
     "trailing-spaces.trimOnSave": false
   },
 
-  // ── TypeScript / JavaScript (ESLint + Prettier) ───────────
-  // 配置文件在非标准路径，必须显式指定，否则插件找不到
-
-  // Prettier — 指向非标准路径的配置文件
-  "prettier.configPath": ".lintrc/frontend/prettier/.prettierrc",
-  // TS/JS 文件默认格式化器设为 Prettier
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
-
-  // ESLint — 指向非标准路径的配置文件（eslint@8 旧版 eslintrc 格式）
-  "eslint.options": {
-    "overrideConfigFile": ".lintrc/frontend/typescript/.eslintrc-ts.json"
-  },
-  // 仅对 TS/JS 文件启用 ESLint（避免对其他语言误报）
-  "eslint.validate": [
-    "javascript",
-    "typescript"
-  ],
-  // 保存时自动修复 ESLint 可自动修复的问题
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  },
-
-  // 移动/重命名文件时自动更新所有 import 路径（VS Code 内置功能）
-  "js/ts.updateImportsOnFileMove.enabled": "always",
-
   // ── Shell / Bash (ShellCheck + shell-format) ──────────────
   // Remote SSH 连接 Ubuntu 后，插件自动使用远程的 shellcheck / shfmt 工具
-  // ShellCheck — 默认检查所有 shell 文件，无需额外配置路径
-  // 指定目标 shell 方言：bash（按需改为 sh / ksh / dash）
-  "shellcheck.customArgs": ["--shell=bash"],
-  // 排除不需要的规则（按需添加）：
-  // SC1091 = 忽略 source 文件找不到的警告（常见于 CI 脚本）
-  "shellcheck.exclude": ["SC1091"],
+  // ShellCheck — 使用项目统一配置（与 CI SHELLCHECK_OPTS 保持一致）
+  // .shellcheckrc 已声明 shell=bash / extended-analysis / external-sources 等
+  "shellcheck.customArgs": ["--rcfile", ".lintrc/infrastructure/shell/.shellcheckrc"],
 
   // shell-format — sh / bash / zsh 文件保存时自动格式化
   "[shellscript]": {
@@ -183,11 +141,10 @@
     "https://json.schemastore.org/github-workflow.json": ".github/workflows/*.yml",
     "https://json.schemastore.org/dependabot-2.0.json": ".github/dependabot.yml"
   },
-  // 禁用插件内置格式化（改用 Prettier，避免两者冲突）
-  "yaml.format.enable": false,
-  // YAML 文件格式化器设为 Prettier（.prettierrc 已有 YAML 专项配置：2空格、singleQuote: false）
+  // 使用 redhat YAML 插件内置格式化；CI 通过 yamllint 做严格校验，VS Code 仅辅助格式化
+  "yaml.format.enable": true,
   "[yaml]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": "redhat.vscode-yaml",
     "editor.formatOnSave": true
   },
 
@@ -197,12 +154,13 @@
     "editor.defaultFormatter": "tamasfe.even-better-toml",
     "editor.formatOnSave": true
   },
-  // 表格（[section]）内部缩进对齐，可读性更好
-  "evenBetterToml.formatter.indentTables": true,
+  // 与 .lintrc/data-formats/toml/taplo.toml 中 indent_tables = false 保持一致
+  "evenBetterToml.formatter.indentTables": false,
 
   // ── Python (ms-python / pylance) ─────────────────────────
+  // 使用 Ruff 扩展（charliermarsh.ruff）作为格式化器，与 CI ruff format --check 保持一致
   "[python]": {
-    "editor.defaultFormatter": "ms-python.python",
+    "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true
   },
   // Pylance — 类型检查强度（off / basic / standard / strict）
@@ -219,8 +177,10 @@
     "editor.defaultFormatter": "ms-vscode.cpptools",
     "editor.formatOnSave": true
   },
-  // ClangFormat 风格（按需改为 LLVM / Mozilla / WebKit / Microsoft / Google）
-  "C_Cpp.clang_format_style": "Google",
+  // 使用项目 clang-format 配置（BasedOnStyle: LLVM, IndentWidth: 4, ColumnLimit: 100）
+  // 在工作区根执行：ln -s .lintrc/backend/c-cpp/.clang-format .clang-format
+  "C_Cpp.clang_format_style": "file",
+  "C_Cpp.clang_format_fallbackStyle": "LLVM",
 
   // ── Rust (rust-lang.rust-analyzer) ───────────────────────
   "[rust]": {
@@ -234,11 +194,6 @@
   "[java]": {
     "editor.defaultFormatter": "redhat.java",
     "editor.formatOnSave": true
-  },
 
-  // ── Vue (Vue.volar) ──────────────────────────────────────
-  "[vue]": {
-    "editor.defaultFormatter": "Vue.volar",
-    "editor.formatOnSave": true
   }
 }

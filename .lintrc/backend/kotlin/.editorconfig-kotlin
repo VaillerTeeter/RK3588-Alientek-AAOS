@@ -1,6 +1,6 @@
-# Kotlin 代码风格配置 — ktlint
+# Kotlin 代码风格配置 — ktlint（全面严格模式）
 
-# 行宽（与 Prettier 保持一致）
+# 行宽
 max_line_length = 120
 
 # 使用 4 空格缩进（Kotlin 官方规范）
@@ -26,33 +26,261 @@ indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-# Kotlin 官方编码规范：函数参数换行
-ktlint_standard_function-signature = enabled
-ktlint_standard_function-expression-body = enabled
-ktlint_standard_multiline-expression-wrapping = enabled
+# ── Standard 规则集（全量启用）────────────────────────────────────────────
 
-# Import 排序规则
-ktlint_standard_import-ordering = enabled
-ktlint_standard_no-wildcard-imports = enabled
+# 注解格式化（@Annotation 与其修饰对象的间距）
+ktlint_standard_annotation = enabled
 
-# 字符串模板
-ktlint_standard_string-template = enabled
+# 注解间距（注解之间必须有空行）
+ktlint_standard_annotation-spacing = enabled
 
-# 尾随逗号（Kotlin 1.6+ 官方推荐）
-ktlint_standard_trailing-comma-on-call-site = always
-ktlint_standard_trailing-comma-on-declaration-site = always
+# 参数列表换行（超长参数列表强制换行）
+ktlint_standard_argument-list-wrapping = enabled
 
-# 注释格式
-ktlint_standard_comment-spacing = enabled
-ktlint_standard_kdoc-formatting = enabled
+# 二元表达式换行（&&/|| 等操作符位置）
+ktlint_standard_binary-expression-wrapping = enabled
 
-# 空行规范
-ktlint_standard_no-empty-first-line-in-class-body = enabled
-ktlint_standard_no-consecutive-blank-lines = enabled
+# 声明前必须有空行
 ktlint_standard_blank-line-before-declaration = enabled
 
-# 命名规范（与 Kotlin 官方一致）
+# 块注释周围必须有空行
+ktlint_standard_blank-lines-around-block-comment = enabled
+
+# 块注释首行 * 对齐
+ktlint_standard_block-comment-initial-star-alignment = enabled
+
+# 链式方法调用换行风格
+ktlint_standard_chain-method-continuation = enabled
+
+# 类命名：PascalCase
 ktlint_standard_class-naming = enabled
+
+# 注释内容与 // 之间必须有空格
+ktlint_standard_comment-spacing = enabled
+
+# 注释内容换行格式
+ktlint_standard_comment-wrapping = enabled
+
+# 条件语句换行
+ktlint_standard_condition-wrapping = enabled
+
+# 禁止在不适当位置放置注释
+ktlint_standard_discouraged-comment-location = enabled
+
+# 枚举条目换行格式
+ktlint_standard_enum-wrapping = enabled
+
+# 文件注解格式
+ktlint_standard_file-annotation = enabled
+
+# 文件名必须与顶层类名一致
+ktlint_standard_filename = enabled
+
+# 函数体空大括号格式（不写多余空白）
+ktlint_standard_function-body-empty-braces = enabled
+
+# 函数表达式体（= 代替 { return }）
+ktlint_standard_function-expression-body = enabled
+
+# Lambda 字面量格式
+ktlint_standard_function-literal = enabled
+
+# 函数命名：camelCase
 ktlint_standard_function-naming = enabled
-ktlint_standard_property-naming = enabled
+
+# 函数签名换行规则（超长签名必须换行）
+ktlint_standard_function-signature = enabled
+
+# 函数体开始位置的间距
+ktlint_standard_function-start-of-body-spacing = enabled
+
+# 函数类型引用间距
+ktlint_standard_function-type-reference-spacing = enabled
+
+# import 排序规则
+ktlint_standard_import-ordering = enabled
+
+# 缩进
+ktlint_standard_indent = enabled
+
+# KDoc 换行格式
+ktlint_standard_kdoc-wrapping = enabled
+
+# 关键字间距（if/for/while 等后面必须有空格）
+ktlint_standard_keyword-spacing = enabled
+
+# Lambda 参数换行
+ktlint_standard_lambda-parameter-wrapping = enabled
+
+# 修饰符列表间距
+ktlint_standard_modifier-list-spacing = enabled
+
+# 修饰符顺序（public/override/suspend 等顺序）
+ktlint_standard_modifier-order = enabled
+
+# 多行表达式换行
+ktlint_standard_multiline-expression-wrapping = enabled
+
+# 多行 if-else 格式（必须有大括号）
+ktlint_standard_multiline-if-else = enabled
+
+# 多行循环格式
+ktlint_standard_multiline-loop = enabled
+
+# 多行字符串模板格式
+ktlint_standard_multiline-string-template = enabled
+
+# 右大括号前不允许空行
+ktlint_standard_no-blank-line-before-rbrace = enabled
+
+# 禁止连续空行
+ktlint_standard_no-consecutive-blank-lines = enabled
+
+# 禁止空类体（class Foo {}）
+ktlint_standard_no-empty-class-body = enabled
+
+# 禁止空文件
+ktlint_standard_no-empty-file = enabled
+
+# 类体第一行不允许为空行
+ktlint_standard_no-empty-first-line-in-class-body = enabled
+
+# else 前不允许换行（dangling else 防范）
+ktlint_standard_no-line-break-after-else = enabled
+
+# 赋值号前不允许换行
+ktlint_standard_no-line-break-before-assignment = enabled
+
+# 禁止多余空格
+ktlint_standard_no-multi-spaces = enabled
+
+# 禁止分号（Kotlin 风格不用分号）
+ktlint_standard_no-semicolons = enabled
+
+# 禁止单行块注释（/* ... */）
+ktlint_standard_no-single-line-block-comment = enabled
+
+# 禁止行尾空格
+ktlint_standard_no-trailing-spaces = enabled
+
+# 禁止显式 Unit 返回类型
+ktlint_standard_no-unit-return = enabled
+
+# 禁止未使用的 import
+ktlint_standard_no-unused-imports = enabled
+
+# 禁止 var（优先使用 val）
+ktlint_standard_no-var = enabled
+
+# 禁止通配符 import
+ktlint_standard_no-wildcard-imports = enabled
+
+# 包名：全小写
 ktlint_standard_package-name = enabled
+
+# 参数列表间距
+ktlint_standard_parameter-list-spacing = enabled
+
+# 参数列表换行（超长参数列表）
+ktlint_standard_parameter-list-wrapping = enabled
+
+# 参数换行（单个参数）
+ktlint_standard_parameter-wrapping = enabled
+
+# Lambda 参数前括号
+ktlint_standard_parentheses-before-lambda-argument = enabled
+
+# 属性命名规范
+ktlint_standard_property-naming = enabled
+
+# 属性换行格式
+ktlint_standard_property-wrapping = enabled
+
+# 尖括号 <> 间距
+ktlint_standard_spacing-around-angle-brackets = enabled
+
+# 冒号间距
+ktlint_standard_spacing-around-colon = enabled
+
+# 逗号间距
+ktlint_standard_spacing-around-comma = enabled
+
+# 大括号间距
+ktlint_standard_spacing-around-curly = enabled
+
+# 点号间距
+ktlint_standard_spacing-around-dot = enabled
+
+# 关键字周围间距
+ktlint_standard_spacing-around-keywords = enabled
+
+# 运算符间距
+ktlint_standard_spacing-around-operators = enabled
+
+# 括号间距
+ktlint_standard_spacing-around-parens = enabled
+
+# 范围运算符间距
+ktlint_standard_spacing-around-range-operator = enabled
+
+# 分号间距
+ktlint_standard_spacing-around-semicolon = enabled
+
+# 一元运算符间距
+ktlint_standard_spacing-around-unary-operator = enabled
+
+# 注解声明之间空行
+ktlint_standard_spacing-between-declarations-with-annotations = enabled
+
+# 注释声明之间空行
+ktlint_standard_spacing-between-declarations-with-comments = enabled
+
+# 语句换行
+ktlint_standard_statement-wrapping = enabled
+
+# 字符串模板格式（禁止多余的 ${} 包裹单变量）
+ktlint_standard_string-template = enabled
+
+# 字符串模板缩进
+ktlint_standard_string-template-indent = enabled
+
+# 调用处尾随逗号（Kotlin 1.6+ 官方推荐）
+ktlint_standard_trailing-comma-on-call-site = always
+
+# 声明处尾随逗号（Kotlin 1.6+ 官方推荐）
+ktlint_standard_trailing-comma-on-declaration-site = always
+
+# try-catch-finally 间距
+ktlint_standard_try-catch-finally-spacing = enabled
+
+# 类型参数列表间距（调用处）
+ktlint_standard_type-argument-list-spacing = enabled
+
+# 类型参数注释格式
+ktlint_standard_type-parameter-comment = enabled
+
+# 类型参数列表间距（声明处）
+ktlint_standard_type-parameter-list-spacing = enabled
+
+# Lambda 前不必要的括号
+ktlint_standard_unnecessary-parentheses-before-trailing-lambda = enabled
+
+# 值参数注释格式
+ktlint_standard_value-argument-comment = enabled
+
+# 值参数前导逗号
+ktlint_standard_value-argument-leading-comma = enabled
+
+# 值参数（声明处）注释格式
+ktlint_standard_value-parameter-comment = enabled
+
+# 换行格式（统一换行规范）
+ktlint_standard_wrapping = enabled
+
+# ── Experimental 规则集（全量启用）─────────────────────────────────────────
+
+# 枚举条目命名：UPPER_SNAKE_CASE
+ktlint_experimental_enum-entry-name-case = enabled
+
+# 方法块第一行不允许为空行
+ktlint_experimental_no-empty-first-line-in-method-block = enabled

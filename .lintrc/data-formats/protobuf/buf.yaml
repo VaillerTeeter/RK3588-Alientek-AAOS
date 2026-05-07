@@ -8,67 +8,53 @@ version: v2
 
 modules:
   - path: .
-    # 排除生成代码目录
-    excludes:
-      - vendor/
-      - gen/
-      - third_party/
 
 lint:
-  # 使用 DEFAULT 规则集（包含 BASIC + MINIMAL）
+  # ALL 规则集 = MINIMAL + BASIC + DEFAULT + 全部可选规则
+  # 在 DEFAULT 基础上额外启用：
+  #   COMMENT_ENUM_VALUE      枚举各值必须有注释
+  #   COMMENT_FIELD           消息内各字段必须有注释
+  #   COMMENT_ONEOF           oneof 组必须有注释
+  #   PACKAGE_VERSION_SUFFIX  package 名必须以版本后缀结尾（如 v1, v2alpha1）
+  #   RPC_NO_CLIENT_STREAMING 禁止客户端流式 RPC
+  #   RPC_NO_SERVER_STREAMING 禁止服务端流式 RPC
+  #   RPC_REQUEST_RESPONSE_UNIQUE  每个 RPC 使用唯一的 Request/Response 类型
+  #   RPC_REQUEST_STANDARD_NAME    Request 类型命名须为 {RpcName}Request
+  #   RPC_RESPONSE_STANDARD_NAME   Response 类型命名须为 {RpcName}Response
   use:
-    - DEFAULT
+    - ALL
+  # 不排除任何规则
   except: []
+  # 不豁免任何目录
+  ignore: []
+  ignore_only: {}
+  # 禁止通过 buf:lint:ignore 注释绕过规则
+  allow_comment_ignores: false
 
-  # 忽略特定目录的 lint
-  ignore:
-    - vendor
-    - gen
-    - third_party
-
-  # ── DEFAULT 规则集包含的关键规则 ──────────────────────────
-  # MINIMAL:
-  #   DIRECTORY_SAME_PACKAGE    目录内 .proto 文件必须使用同一 package
-  #   PACKAGE_DEFINED           必须定义 package
-  #   PACKAGE_DIRECTORY_MATCH   package 名称与目录结构一致
-  #   PACKAGE_SAME_*            同 package 下 go_package/java_package 等必须一致
-  #
-  # BASIC（含 MINIMAL）:
-  #   ENUM_FIRST_VALUE_ZERO     枚举第一个值必须为 0
-  #   ENUM_NO_ALLOW_ALIAS       禁止 allow_alias 选项
-  #   IMPORT_NO_PUBLIC          禁止 import public
-  #   IMPORT_NO_WEAK            禁止 import weak
-  #   MESSAGE_NO_EMBED_FIELDS   不嵌入字段（oneof 除外）
-  #
-  # DEFAULT（含 BASIC）:
-  #   ENUM_VALUE_UPPER_SNAKE_CASE  枚举值必须全大写蛇形
-  #   FIELD_LOWER_SNAKE_CASE       字段名必须蛇形小写
-  #   MESSAGE_PASCAL_CASE          消息名必须 PascalCase
-  #   PACKAGE_LOWER_SNAKE_CASE     package 名小写蛇形
-  #   RPC_PASCAL_CASE              RPC 方法名 PascalCase
-  #   SERVICE_PASCAL_CASE          Service 名 PascalCase
-  #   COMMENT_ENUM / MESSAGE / RPC / SERVICE  重要类型必须有注释
-  # ─────────────────────────────────────────────────────────
-
+  # 枚举第一个值（零值）的名称后缀
   enum_zero_value_suffix: _UNSPECIFIED
+  # Service 名称必须以 Service 后缀结尾
   service_suffix: Service
 
-  # 是否允许 Comment 规则的 leading comment
-  allow_comment_ignores: true
-
 breaking:
-  # 检测 API 破坏性变更
-  use:
-    - FILE
-  # FILE 规则集检测内容：
-  #   字段被删除或改变类型
+  # WIRE_JSON — 最严格的破坏性变更检测，同时保证二进制 wire 和 JSON 兼容性
+  # 检测范围（包含 FILE 规则集全部内容）：
+  #   字段被删除或改变类型 / 字段号
   #   消息/枚举/服务被删除
+  #   枚举化名改变（JSON 序列化用字符串名称）
   #   枚举值被删除
   #   必选字段变为可选（proto2）
-  #   RPC 签名变更
+  #   RPC 签名变更（输入 / 输出类型）
+  #   消息字段 JSON 名称对应关系变更
+  use:
+    - WIRE_JSON
+  # 不排除任何规则
+  except: []
+  # 不豁免任何目录
+  ignore: []
+  ignore_only: {}
 
-  ignore:
-    - vendor
-    - gen
-# 比较目标（CI 中通过 buf breaking --against 指定）
-# against: ".git#branch=main"
+  # 比较目标：对比 master 分支的 git 历史版本
+  # CI 中调用示例：
+  #   buf breaking --config .lintrc/data-formats/protobuf/buf.yaml \
+  #               --against '.git#branch=master'

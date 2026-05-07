@@ -1,19 +1,21 @@
 ---
 run:
-  timeout: 5m
+  timeout: 10m
   issues-exit-code: 1
   tests: true
   modules-download-mode: readonly
+  allow-parallel-runners: true
 
 output:
   format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
   sort-results: true
+  show-stats: true
 
 linters:
   enable:
-    # --- 默认启用 ---
+    # --- 默认启用（golangci-lint 核心）---
     - errcheck        # 检查未处理的错误返回值
     - gosimple        # 简化代码建议
     - govet           # go vet 检查（可疑构造）
@@ -22,59 +24,104 @@ linters:
     - unused          # 检查未使用的代码
 
     # --- 错误处理 ---
-    - errorlint       # 正确包装/比较 error（errors.Is/As）
-    - wrapcheck       # 跨包 error 必须 wrap
+    - errname          # error 类型命名规范（ErrFoo / FooError）
+    - errorlint        # 正确包装/比较 error（errors.Is/As）
+    - goerr113         # 禁止 errors.New 内联，必须定义包级 error 变量
+    - nilerr           # 禁止 `if err != nil { return nil }` 错误模式
+    - nilnil           # 禁止返回 (nil, nil)
+    - wrapcheck        # 跨包 error 必须 wrap
+
+    # --- 类型安全 ---
+    - forcetypeassert  # 禁止非安全类型断言
+    - ireturn          # 接口返回检查
 
     # --- 代码质量 ---
-    - cyclop          # 圈复杂度检查
-    - gocognit        # 认知复杂度检查
-    - gocyclo         # 经典圈复杂度
-    - maintidx        # 可维护性指数
-    - funlen          # 函数长度限制
-    - gochecknoinits  # 禁止 init() 函数
-    - godot           # 注释句号规范
-    - godox           # 禁止 TODO/FIXME 残留
-    - gocritic        # 多类别代码评审（200+ 检查）
-    - revive          # 替代 golint 的可配置 linter
-    - whitespace      # 多余空行检查
+    - asasalint        # 检查 []any 参数误传给变参函数
+    - containedctx     # 禁止 context.Context 嵌入 struct
+    - contextcheck     # context 必须正确传递，不得被忽略
+    - cyclop           # 圈复杂度检查
+    - decorder         # 声明顺序规范（const/var/type/func）
+    - dogsled          # 禁止过多空白标识符赋值（_ = ...）
+    - dupl             # 重复代码检测
+    - durationcheck    # time.Duration 乘法检查（防溢出）
+    - exhaustruct      # 结构体所有字段必须显式初始化
+    - funlen           # 函数长度限制
+    - goconst          # 重复字符串应提取为常量
+    - gocritic         # 多类别代码评审（200+ 检查）
+    - gochecknoglobals # 禁止包级可变全局变量
+    - gochecknoinits   # 禁止 init() 函数
+    - gocognit         # 认知复杂度检查
+    - gocyclo          # 经典圈复杂度
+    - godot            # 注释句号规范
+    - godox            # 禁止 TODO/FIXME 残留
+    - goprintffuncname # printf 系列函数命名规范
+    - importas         # import 别名命名规范
+    - interfacebloat   # 接口方法数量限制
+    - maintidx         # 可维护性指数
+    - makezero         # make([]T, n) 后立即索引赋值检查
+    - nakedret         # 裸 return 检查（大函数中）
+    - nestif           # 嵌套 if 复杂度
+    - nlreturn         # return 前空行规范
+    - nonamedreturns   # 禁止命名返回值
+    - nolintlint       # nolint 指令必须说明具体原因
+    - predeclared      # 禁止遮蔽预声明标识符（len/cap/make 等）
+    - reassign         # 禁止重新赋值包级变量
+    - revive           # 替代 golint 的可配置 linter
+    - unconvert        # 多余类型转换
+    - unparam          # 未使用的函数参数
+    - varnamelen       # 变量名长度检查
+    - wastedassign     # 赋值后从未使用检查
+    - whitespace       # 多余空行检查
+    - wsl              # 空行和空格风格强制执行
 
     # --- 安全 ---
-    - gosec           # 安全漏洞扫描（OWASP 规则）
-    - exhaustive      # switch 枚举穷举检查
+    - bidichk          # 双向 Unicode 控制字符检查（供应链安全）
+    - exhaustive       # switch 枚举穷举检查
+    - gosec            # 安全漏洞扫描（OWASP 规则）
 
     # --- 性能 ---
-    - prealloc        # slice 预分配建议
-    - noctx           # HTTP 请求必须传 context
+    - noctx            # HTTP 请求必须传 context
+    - perfsprint       # 替换低效的 fmt.Sprintf 用法
+    - prealloc         # slice 预分配建议
 
     # --- 风格 ---
-    - gofmt           # 格式化检查
-    - goimports       # import 分组和排序
-    - misspell        # 英文拼写检查
-    - nlreturn        # return 前空行规范
-    - unconvert       # 多余类型转换
-    - unparam         # 未使用的函数参数
-    - dupl            # 重复代码检测
-    - gci             # import 分组顺序
-    - lll             # 行长度限制
-    - nakedret        # 裸 return 检查（大函数中）
-    - nestif          # 嵌套 if 复杂度
+    - gci              # import 分组顺序
+    - gofmt            # 格式化检查
+    - gofumpt          # 更严格的 gofmt 超集
+    - goimports        # import 分组和排序
+    - grouper          # const/var/type/import 分组规范
+    - lll              # 行长度限制
+    - mirror           # 建议使用 mirror 函数（bytes↔string 等）
+    - misspell         # 英文拼写检查
+    - musttag          # struct 序列化必须有对应 tag
+    - nosprintfhostport  # 禁止用 Sprintf 拼接 host:port
+    - stylecheck       # 命名规范（ST 系列）
+    - tagalign         # struct tag 对齐
+    - tagliatelle      # struct tag 命名规范
+    - usestdlibvars    # 使用标准库已定义的变量/常量
 
-    # --- 命名 ---
-    - stylecheck      # 命名规范（ST 系列）
-    - tagliatelle     # struct tag 命名规范
+    # --- 测试 ---
+    - forbidigo        # 禁止特定函数调用（fmt.Print / log.Fatal 等）
+    - paralleltest     # 测试必须并行（t.Parallel）
+    - tenv             # 测试中禁止直接调用 os.Setenv
+    - testifylint      # testify 使用规范检查
+    - testpackage      # 测试代码应在独立的 _test 包中
+    - thelper          # 测试 helper 函数必须调用 t.Helper()
+    - tparallel        # 子测试必须调用 t.Parallel()
 
-    # --- 现代 Go ---
-    - nilerr          # 禁止 `if err != nil { return nil }` 错误模式
-    - nilnil          # 禁止返回 (nil, nil)
-    - ireturn         # 接口返回检查
-    - forcetypeassert  # 禁止非安全类型断言
+    # --- HTTP / 数据库 ---
+    - bodyclose        # HTTP response body 必须关闭
+    - rowserrcheck     # sql.Rows.Err() 必须检查
+    - sqlclosecheck    # sql.Rows / Stmt 必须关闭
 
-  disable:
-    - exhaustruct    # 结构体所有字段赋值（过于严格）
-    - varnamelen     # 变量名长度（有误报）
-    - wsl            # 空行风格（过于严格）
-    - depguard       # 依赖白名单（需额外配置）
-    - paralleltest   # 测试并行（非强制）
+    # --- 依赖控制 ---
+    - depguard         # 依赖包白名单控制
+    - gomoddirectives  # go.mod directives 规范
+
+    # --- 日志 ---
+    - loggercheck      # 结构化日志 key-value 成对检查
+    - sloglint         # slog 使用规范
+    - zerologlint      # zerolog 使用规范
 
 linters-settings:
   errcheck:
@@ -104,16 +151,23 @@ linters-settings:
 
   gci:
     sections:
-      - standard                          # 标准库
-      - default                           # 外部包
-      - prefix(github.com/VaillerTeeter)  # 本项目包
+      - standard                                    # 标准库
+      - default                                     # 外部包
+      # TODO: 替换为实际模块路径
+      - prefix(github.com/YOUR_ORG/YOUR_REPO)       # 本项目包
     skip-generated: true
+    custom-order: true
+
+  gofumpt:
+    extra-rules: true
 
   goimports:
-    local-prefixes: github.com/VaillerTeeter
+    # TODO: 替换为实际模块路径
+    local-prefixes: github.com/YOUR_ORG/YOUR_REPO
 
   misspell:
     locale: US
+    ignore-words: []
 
   nakedret:
     max-func-lines: 30
@@ -128,13 +182,23 @@ linters-settings:
         json: snake
         yaml: kebab
         toml: kebab
+        env: screaming-snake
+        mapstructure: kebab
+
+  tagalign:
+    align: true
+    sort: true
+    order:
+      - json
+      - yaml
+      - toml
+      - env
+      - mapstructure
 
   gosec:
     severity: low
     confidence: low
-    excludes:
-      - G104  # 已由 errcheck 覆盖
-      - G304  # 文件路径参数（有合理使用场景）
+    # 不排除任何规则，全面启用
 
   gocritic:
     enabled-tags:
@@ -142,61 +206,233 @@ linters-settings:
       - style
       - performance
       - experimental
-    disabled-checks:
-      - hugeParam        # 按值传递大结构体（有时是故意的）
-      - paramTypeCombine  # 合并参数类型
+      - opinionated
+    disabled-checks: []
 
   revive:
     severity: error
-    confidence: 0.8
+    confidence: 0.0
+    enable-all-rules: true
     rules:
-      - name: exported
-        severity: error
-      - name: unexported-return
-      - name: context-as-argument
-        arguments:
-          - allowTypesBefore: "*testing.T,*github.com/user/repo/testing.Harness"
-      - name: error-strings
-      - name: increment-decrement
-      - name: var-naming
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
-      - name: unused-parameter
-      - name: unreachable-code
-      - name: redefines-builtin-id
+      - name: line-length-limit
+        arguments: [120]
+      - name: cognitive-complexity
+        arguments: [10]
+      - name: cyclomatic
+        arguments: [10]
+      - name: function-result-limit
+        arguments: [4]
+      - name: function-length
+        arguments: [60, 40]
+      - name: argument-limit
+        arguments: [6]
+      - name: max-public-structs
+        arguments: [10]
+      - name: file-header
+        disabled: true  # 项目尚未确定文件头格式，待定后启用
 
   exhaustive:
-    default-signifies-exhaustive: true
+    default-signifies-exhaustive: false  # 严格：default 不免除穷举
+    check:
+      - switch
+      - map
 
   dupl:
-    threshold: 100
+    threshold: 80  # 重复阈值（原 100，更严格）
 
   maintidx:
     under: 20
 
+  varnamelen:
+    min-name-length: 2
+    check-receiver: true
+    check-return: true
+    check-type-param: true
+    ignore-names:
+      - err
+      - ok
+      - id
+      - wg
+      - mu
+      - tt
+      - db
+      - tx
+      - fn
+      - rc
+      - nr
+      - sb
+      - io
+
+  wsl:
+    strict-append: true
+    allow-assign-and-call: false
+    allow-multiline-assign: true
+    force-case-trailing-whitespace: 0
+    allow-trailing-comment: false
+    allow-separated-leading-comment: false
+    allow-cuddle-declarations: false
+    force-err-cuddling: true
+    force-short-decl-cuddling: false
+
+  exhaustruct:
+    include:
+      - '.*'
+
+  nonamedreturns:
+    report-error-in-defer: true
+
+  interfacebloat:
+    max: 5
+
+  decorder:
+    dec-order:
+      - const
+      - var
+      - type
+      - func
+    disable-dec-order-check: false
+    disable-init-func-first-check: false
+    disable-dec-num-check: false
+
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "io/ioutil"
+            desc: "deprecated since Go 1.16, use io and os packages"
+          - pkg: "github.com/pkg/errors"
+            desc: "use standard library errors with fmt.Errorf %w"
+          - pkg: "log"
+            desc: "use structured logging package instead"
+          - pkg: "reflect"
+            desc: "avoid reflect; prefer type-safe alternatives"
+
+  forbidigo:
+    forbid:
+      - p: ^fmt\.Print(ln|f)?$
+        msg: "use structured logging instead of fmt.Print"
+      - p: ^log\.Print(ln|f)?$
+        msg: "use structured logging package"
+      - p: ^log\.Fatal(ln|f)?$
+        msg: "use structured logging package"
+      - p: ^log\.Panic(ln|f)?$
+        msg: "use structured logging package"
+      - p: ^os\.Exit$
+        msg: "os.Exit should only be called from main()"
+      - p: ^panic$
+        msg: "avoid panic; return errors instead"
+      - p: ^time\.Sleep$
+        msg: "time.Sleep is usually a sign of poor design; use channels or contexts"
+
+  contextcheck:
+    non-inherited-values: true
+
+  testpackage:
+    skip-regular-files: false
+
+  tparallel:
+    ignore-top-level: false
+
+  goconst:
+    min-len: 3
+    min-occurrences: 2  # 严格（原 3）
+    ignore-tests: false
+    match-constant: true
+    numbers: true
+
+  gomoddirectives:
+    replace-allow-list: []
+    retract-allow-no-explanation: false
+    exclude-forbidden: true
+
+  usestdlibvars:
+    http-method: true
+    http-status-code: true
+    time-weekday: true
+    time-month: true
+    time-layout: true
+    crypto-hash: true
+    default-rpc-path: true
+    sql-isolation-level: true
+    tls-signature-scheme: true
+    constant-kind: true
+    syslog-priority: true
+
+  musttag:
+    functions:
+      - name: encoding/json.Marshal
+        tag: json
+      - name: encoding/json.Unmarshal
+        tag: json
+      - name: gopkg.in/yaml.v3.Marshal
+        tag: yaml
+      - name: gopkg.in/yaml.v3.Unmarshal
+        tag: yaml
+      - name: github.com/mitchellh/mapstructure.Decode
+        tag: mapstructure
+
+  perfsprint:
+    int-conversion: true
+    err-error: true
+    errorf: true
+    sprintf1: true
+    strconcat: true
+
+  mirror: {}
+
+  nosprintfhostport: {}
+
+  loggercheck:
+    kitlog: true
+    klog: true
+    logr: true
+    zap: true
+    require-string-key: true
+    no-printf-like: true
+
+  sloglint:
+    no-mixed-args: true
+    kv-only: true
+    no-global: "all"
+    context: "all"
+    static-msg: true
+    key-naming-case: snake
+    forbidden-keys:
+      - msg
+      - level
+      - time
+    args-on-sep-lines: true
+
+  asasalint:
+    use-builtin-exclusions: false
+    ignore-test: false
+
+  bidichk:
+    check-left-to-right-embedding: true
+    check-right-to-left-embedding: true
+    check-pop-directional-formatting: true
+    check-left-to-right-override: true
+    check-right-to-left-override: true
+    check-left-to-right-isolate: true
+    check-right-to-left-isolate: true
+    check-first-strong-isolate: true
+    check-pop-directional-isolate: true
+
+  grouper:
+    const-require-single-const: true
+    const-require-grouping: true
+    import-require-single-import: false
+    import-require-grouping: true
+    type-require-single-type: true
+    type-require-grouping: true
+    var-require-single-var: true
+    var-require-grouping: true
+
+  testifylint:
+    enable-all: true
+
 issues:
   max-same-issues: 0
   max-issues-per-linter: 0
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - funlen
-        - gocognit
-        - gocyclo
-        - cyclop
-        - wrapcheck
-        - gosec
-        - gochecknoinits
-    - path: _test\.go
-      text: "Error return value of .* is not checked"
-    - linters:
-        - lll
-      source: "^//go:generate "
   fix: false
+  exclude-rules: []  # 不排除任何规则

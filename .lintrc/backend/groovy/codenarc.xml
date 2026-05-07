@@ -2,55 +2,411 @@
 <ruleset xmlns="http://codenarc.org/ruleset/1.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://codenarc.org/ruleset/1.0 http://codenarc.org/ruleset-schema.xsd">
-    <description>Project CodeNarc Ruleset</description>
+    <description>RK3588-Alientek-AAOS CodeNarc Ruleset — Groovy / Gradle (全面严格)</description>
 
+    <!-- ================================================================
+         basic.xml — 基础 Bug 检查
+         ================================================================ -->
     <ruleset-ref path="rulesets/basic.xml"/>
+
+    <!-- ================================================================
+         braces.xml — 大括号强制
+         ================================================================ -->
     <ruleset-ref path="rulesets/braces.xml"/>
-    <ruleset-ref path="rulesets/convention.xml"/>
-    <ruleset-ref path="rulesets/design.xml"/>
-    <ruleset-ref path="rulesets/exceptions.xml"/>
+
+    <!-- ================================================================
+         comments.xml — 注释规范
+         ================================================================ -->
+    <ruleset-ref path="rulesets/comments.xml">
+        <!-- Javadoc 注释必须有描述文字，不能为空 -->
+        <rule-config name="JavadocConsecutiveEmptyLines">
+            <property name="maxConsecutiveEmptyLines" value="1"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         concurrency.xml — 并发安全
+         ================================================================ -->
+    <ruleset-ref path="rulesets/concurrency.xml"/>
+
+    <!-- ================================================================
+         convention.xml — 惯用法约定
+         ================================================================ -->
+    <ruleset-ref path="rulesets/convention.xml">
+        <!-- 三元表达式中对 null 的判断必须用 ?:（Elvis 运算符）-->
+        <rule-config name="CouldBeElvis">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- def 仅在必要时使用，鼓励明确类型 -->
+        <rule-config name="NoDouble">
+            <property name="enabled" value="true"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         design.xml — 设计约束
+         ================================================================ -->
+    <ruleset-ref path="rulesets/design.xml">
+        <!-- 抽象类不允许没有抽象方法 -->
+        <rule-config name="AbstractClassWithoutAbstractMethod">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 抽象类不允许没有任何方法 -->
+        <rule-config name="AbstractClassWithPublicConstructor">
+            <property name="enabled" value="true"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         dry.xml — 不重复自己（DRY 原则）
+         ================================================================ -->
+    <ruleset-ref path="rulesets/dry.xml">
+        <!-- 重复字面量阈值：出现 2 次及以上就需要提取常量 -->
+        <rule-config name="DuplicateStringLiteral">
+            <property name="duplicateStringMinimumLength" value="4"/>
+        </rule-config>
+        <rule-config name="DuplicateNumberLiteral">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <rule-config name="DuplicateListLiteral">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <rule-config name="DuplicateMapLiteral">
+            <property name="enabled" value="true"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         exceptions.xml — 异常处理约束
+         ================================================================ -->
+    <ruleset-ref path="rulesets/exceptions.xml">
+        <!-- 禁止捕获 Exception 基类（应捕获具体类型）-->
+        <rule-config name="CatchException">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止捕获 Error -->
+        <rule-config name="CatchError">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止捕获 Throwable -->
+        <rule-config name="CatchThrowable">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止捕获 RuntimeException -->
+        <rule-config name="CatchRuntimeException">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止捕获 NullPointerException -->
+        <rule-config name="CatchNullPointerException">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止捕获 ArrayIndexOutOfBoundsException -->
+        <rule-config name="CatchArrayIndexOutOfBoundsException">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止空 catch 块 -->
+        <rule-config name="EmptyCatchBlock">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- finally 块中不应 return -->
+        <rule-config name="ReturnFromFinallyBlock">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- finally 块中不应抛出异常 -->
+        <rule-config name="ThrowExceptionFromFinallyBlock">
+            <property name="enabled" value="true"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         formatting.xml — 代码格式
+         ================================================================ -->
     <ruleset-ref path="rulesets/formatting.xml">
+        <!-- 行长限制：120 字符 -->
         <rule-config name="LineLength">
             <property name="length" value="120"/>
+            <property name="ignoreLineRegex" value="^\s*(\/\/.*|\/\*.*|\*.*|\*\/.*|.*import .*)$"/>
         </rule-config>
-        <rule-config name="IndentationRule">
+        <!-- 缩进：4 空格 -->
+        <rule-config name="Indentation">
             <property name="spacesPerIndentLevel" value="4"/>
         </rule-config>
+        <!-- 行尾不允许有空白 -->
+        <rule-config name="TrailingWhitespace">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 文件末尾必须有换行符 -->
+        <rule-config name="FileEndsWithoutNewline">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- import 后必须有空行 -->
+        <rule-config name="MissingBlankLineAfterImports">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- package 声明后必须有空行 -->
+        <rule-config name="MissingBlankLineAfterPackage">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 连续空行不超过 1 行 -->
+        <rule-config name="ConsecutiveBlankLines">
+            <property name="maxConsecutiveBlankLines" value="1"/>
+        </rule-config>
+        <!-- 逗号后必须有空格 -->
+        <rule-config name="SpaceAfterComma">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 运算符两侧必须有空格 -->
+        <rule-config name="SpaceAroundOperator">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 开括号后必须有空格 -->
+        <rule-config name="SpaceAfterOpeningBrace">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 闭括号前必须有空格 -->
+        <rule-config name="SpaceBeforeClosingBrace">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 开括号前必须有空格 -->
+        <rule-config name="SpaceBeforeOpeningBrace">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 分号后必须有空格 -->
+        <rule-config name="SpaceAfterSemicolon">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 关闭括号缩进与开括号对齐 -->
+        <rule-config name="ClosingBraceNotAlone">
+            <property name="enabled" value="true"/>
+        </rule-config>
     </ruleset-ref>
+
+    <!-- ================================================================
+         generic.xml — 通用自定义规则
+         ================================================================ -->
+    <ruleset-ref path="rulesets/generic.xml">
+        <!-- 禁止残留 TODO / FIXME / HACK / XXX 注释 -->
+        <rule-config name="IllegalRegex">
+            <property name="name" value="TodoHackComment"/>
+            <property name="regex" value="(TODO|FIXME|HACK|XXX|TEMP|BUG):"/>
+            <property name="description" value="Residual TODO/FIXME/HACK comments must be resolved before commit"/>
+        </rule-config>
+        <!-- 禁止 System.out.println（应使用日志框架）-->
+        <rule-config name="IllegalRegex">
+            <property name="name" value="NoSystemOutPrintln"/>
+            <property name="regex" value="System\.out\.print(ln)?"/>
+            <property name="description" value="Use a logging framework instead of System.out.println"/>
+        </rule-config>
+        <!-- 禁止 System.err.println -->
+        <rule-config name="IllegalRegex">
+            <property name="name" value="NoSystemErrPrintln"/>
+            <property name="regex" value="System\.err\.print(ln)?"/>
+            <property name="description" value="Use a logging framework instead of System.err.println"/>
+        </rule-config>
+        <!-- 禁止 printStackTrace -->
+        <rule-config name="IllegalRegex">
+            <property name="name" value="NoPrintStackTrace"/>
+            <property name="regex" value="\.printStackTrace\(\)"/>
+            <property name="description" value="Use a logging framework instead of printStackTrace"/>
+        </rule-config>
+        <!-- 禁止硬编码 IP 地址 -->
+        <rule-config name="IllegalRegex">
+            <property name="name" value="NoHardcodedIpAddress"/>
+            <property name="regex" value="\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"/>
+            <property name="description" value="Do not hardcode IP addresses; use configuration"/>
+        </rule-config>
+        <!-- 强制每个 Groovy/Gradle 文件都包含版权声明 -->
+        <rule-config name="RequiredString">
+            <property name="string" value="Copyright"/>
+            <property name="violationMessage" value="File must contain a copyright notice"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         groovyism.xml — Groovy 惯用法
+         ================================================================ -->
     <ruleset-ref path="rulesets/groovyism.xml"/>
+
+    <!-- ================================================================
+         imports.xml — import 规范
+         ================================================================ -->
     <ruleset-ref path="rulesets/imports.xml">
-        <rule-config name="NoWildcardImports"/>
+        <!-- 禁止通配符 import -->
+        <rule-config name="NoWildcardImports">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止重复 import -->
+        <rule-config name="DuplicateImport">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止 import 未使用的类 -->
+        <rule-config name="UnusedImport">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- import 必须排序 -->
+        <rule-config name="MisorderedStaticImports">
+            <property name="comesBefore" value="true"/>
+        </rule-config>
+        <!-- 禁止 import 已被 Groovy 自动导入的包 -->
+        <rule-config name="UnnecessaryGroovyImport">
+            <property name="enabled" value="true"/>
+        </rule-config>
     </ruleset-ref>
-    <ruleset-ref path="rulesets/logging.xml"/>
+
+    <!-- ================================================================
+         junit.xml — 测试规范
+         ================================================================ -->
+    <ruleset-ref path="rulesets/junit.xml">
+        <!-- 测试方法必须有断言 -->
+        <rule-config name="JUnitTestMethodWithoutAssert">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 不应使用 setUp/tearDown 的 super 调用冗余 -->
+        <rule-config name="JUnitUnnecessarySetUp">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <rule-config name="JUnitUnnecessaryTearDown">
+            <property name="enabled" value="true"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         logging.xml — 日志规范
+         ================================================================ -->
+    <ruleset-ref path="rulesets/logging.xml">
+        <!-- 日志调用前应进行级别检查（性能优化）-->
+        <rule-config name="LoggerWithWrongModifiers">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <rule-config name="LoggingSwallowsStacktrace">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <rule-config name="MultipleLoggers">
+            <property name="enabled" value="true"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         naming.xml — 命名规范
+         ================================================================ -->
     <ruleset-ref path="rulesets/naming.xml">
+        <!-- 类名：PascalCase -->
         <rule-config name="ClassName">
             <property name="regex" value="[A-Z][a-zA-Z0-9]*"/>
         </rule-config>
+        <!-- 接口名：PascalCase（与类名相同）-->
+        <rule-config name="InterfaceName">
+            <property name="regex" value="[A-Z][a-zA-Z0-9]*"/>
+        </rule-config>
+        <!-- 方法名：camelCase -->
         <rule-config name="MethodName">
             <property name="regex" value="[a-z][a-zA-Z0-9_]*"/>
         </rule-config>
+        <!-- 变量名：camelCase -->
         <rule-config name="VariableName">
             <property name="regex" value="[a-z][a-zA-Z0-9_]*"/>
+            <property name="finalRegex" value="[a-z][a-zA-Z0-9_]*"/>
         </rule-config>
+        <!-- 字段名：camelCase -->
         <rule-config name="FieldName">
             <property name="regex" value="[a-z][a-zA-Z0-9_]*"/>
+            <property name="finalRegex" value="[A-Z][A-Z0-9_]*"/>
+            <property name="staticFinalRegex" value="[A-Z][A-Z0-9_]*"/>
+        </rule-config>
+        <!-- 常量（static final）：UPPER_SNAKE_CASE -->
+        <rule-config name="ConstantName">
+            <property name="regex" value="[A-Z][A-Z0-9_]*"/>
+        </rule-config>
+        <!-- 参数名：camelCase，最短 2 字符 -->
+        <rule-config name="ParameterName">
+            <property name="regex" value="[a-z][a-zA-Z0-9_]*"/>
+        </rule-config>
+        <!-- 属性名：camelCase -->
+        <rule-config name="PropertyName">
+            <property name="regex" value="[a-z][a-zA-Z0-9_]*"/>
+            <property name="staticFinalRegex" value="[A-Z][A-Z0-9_]*"/>
+        </rule-config>
+        <!-- 包名：全小写，点分隔 -->
+        <rule-config name="PackageName">
+            <property name="regex" value="[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*"/>
+            <property name="packageNameRequired" value="true"/>
+        </rule-config>
+        <!-- 工厂方法命名（of / from / create / build / get 开头）-->
+        <rule-config name="FactoryMethodName">
+            <property name="enabled" value="true"/>
         </rule-config>
     </ruleset-ref>
-    <ruleset-ref path="rulesets/security.xml"/>
+
+    <!-- ================================================================
+         security.xml — 安全
+         ================================================================ -->
+    <ruleset-ref path="rulesets/security.xml">
+        <!-- 禁止不安全的反序列化 -->
+        <rule-config name="ObjectFinalize">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止使用不安全的随机数 -->
+        <rule-config name="InsecureRandom">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <!-- 禁止在代码中硬编码密码字段 -->
+        <rule-config name="HardCodedWindowsFileSeparator">
+            <property name="enabled" value="true"/>
+        </rule-config>
+        <rule-config name="HardCodedWindowsRootDirectory">
+            <property name="enabled" value="true"/>
+        </rule-config>
+    </ruleset-ref>
+
+    <!-- ================================================================
+         serialization.xml — 序列化规范
+         ================================================================ -->
+    <ruleset-ref path="rulesets/serialization.xml"/>
+
+    <!-- ================================================================
+         size.xml — 规模约束（严格限制）
+         ================================================================ -->
     <ruleset-ref path="rulesets/size.xml">
+        <!-- 圈复杂度：方法≤10，类≤60 -->
         <rule-config name="CyclomaticComplexity">
             <property name="maxMethodComplexity" value="10"/>
+            <property name="maxClassAverageMethodComplexity" value="6"/>
         </rule-config>
+        <!-- ABC 度量：比圈复杂度更全面 -->
+        <rule-config name="AbcMetric">
+            <property name="maxMethodAbcScore" value="60"/>
+            <property name="maxClassAverageMethodAbcScore" value="30"/>
+        </rule-config>
+        <!-- 类方法数：≤15 个 -->
         <rule-config name="MethodCount">
             <property name="maxMethods" value="15"/>
         </rule-config>
+        <!-- 类行数：≤400 行 -->
         <rule-config name="ClassSize">
             <property name="maxLines" value="400"/>
         </rule-config>
+        <!-- 方法行数：≤60 行 -->
         <rule-config name="MethodSize">
             <property name="maxLines" value="60"/>
         </rule-config>
+        <!-- 方法参数数：≤5 个 -->
+        <rule-config name="ParameterCount">
+            <property name="maxParameters" value="5"/>
+        </rule-config>
+        <!-- Closure 行数限制：≤30 行 -->
+        <rule-config name="ClosureSize">
+            <property name="maxLines" value="30"/>
+        </rule-config>
     </ruleset-ref>
+
+    <!-- ================================================================
+         unnecessary.xml — 移除冗余代码
+         ================================================================ -->
     <ruleset-ref path="rulesets/unnecessary.xml"/>
+
+    <!-- ================================================================
+         unused.xml — 未使用代码检查
+         ================================================================ -->
     <ruleset-ref path="rulesets/unused.xml"/>
+
 </ruleset>

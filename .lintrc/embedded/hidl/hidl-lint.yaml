@@ -1,0 +1,138 @@
+---
+# HIDL Lint 配置 — RK3588-Alientek-AAOS 项目（全量严格模式）
+# 工具：hidl-gen（AOSP prebuilt：prebuilts/build-tools/）
+# 文档：https://source.android.com/docs/core/architecture/hidl
+#       https://android.googlesource.com/platform/system/tools/hidl/
+#
+# ⚠️  重要说明：
+#   Google 官方政策：Android 12+ 新 HAL 必须使用 AIDL。
+#   HIDL 处于维护模式（仅修复现有接口，禁止新建 HIDL 接口）。
+#   本配置适用于 RK3588 已有 HIDL 接口的维护期 lint 检查。
+#
+# 注意：hidl-gen 不读取本文件，本文件作为 CI 脚本权威配置来源。
+#
+# 用法（CI）：
+#   # 仅校验，不生成代码（-L check）：
+#   hidl-gen \
+#     -L check \
+#     -r android.hardware:hardware/interfaces \
+#     -r android.hidl:system/libhidl/transport \
+#     -r vendor.rockchip.hardware:vendor/rockchip/hardware/interfaces \
+#     android.hardware.<name>@<major>.<minor>
+#
+#   # 哈希校验（检查冻结接口是否被修改）：
+#   hidl-gen \
+#     -L check \
+#     -C \
+#     -r android.hardware:hardware/interfaces \
+#     android.hardware.<name>@<major>.<minor>
+
+# ------------------------------------------------------------------
+# 编译器强制参数
+# ------------------------------------------------------------------
+compiler_flags:
+  # 仅校验模式（不生成代码）
+  lang: check
+
+  # 哈希校验：所有已发布接口必须与 current.txt 中的哈希一致
+  require_hash_match: true
+
+  # 严格检查：所有警告视为错误
+  lint_level: strict
+
+# ------------------------------------------------------------------
+# 版本控制策略
+# ------------------------------------------------------------------
+versioning:
+  # 所有 HIDL 包必须有版本号（major.minor 格式）
+  require_versioning: true
+
+  # Minor 版本 bump 必须保持向后兼容性（不能删除或修改已有方法）
+  require_backward_compatibility: true
+
+  # 所有已发布接口必须有冻结哈希（current.txt 中的条目）
+  require_frozen_hash: true
+
+  # 主版本号 bump 必须从 1.0 重新开始（不允许 2.3、3.1 等跳跃版本）
+  major_version_starts_at_zero: false  # HIDL 从 1.0 开始
+
+  # 同一包内 minor 版本只能递增（1.0 → 1.1，不允许 1.0 → 1.3）
+  require_sequential_minor_version: true
+
+# ------------------------------------------------------------------
+# 接口设计策略
+# ------------------------------------------------------------------
+policy:
+  # 禁止 @hide 注解（HIDL 接口天然对外公开）
+  forbid_hide_annotation: true
+
+  # 禁止在 oneway 接口中声明同步（blocking）方法
+  forbid_blocking_in_oneway: true
+
+  # 所有返回状态的方法必须使用 ::android::hardware::Return<> 包装
+  require_return_wrapper: true
+
+  # 禁止使用裸 handle 类型（应使用 FileDescriptor 或 NativeHandle）
+  forbid_bare_handle: true
+
+  # 禁止在接口方法中使用指针类型（HIDL 不支持指针跨进程传递）
+  forbid_pointer_in_interface: true
+
+  # 结构体/union 成员禁止包含指针
+  forbid_pointer_members_in_types: true
+
+  # 固定大小数组的最大字节数（超过此值会导致 binder 事务超限）
+  max_array_size_bytes: 65536  # 64 KB
+
+  # 单次 IPC 调用传递的最大数据量
+  max_parcel_size_bytes: 1048576  # 1 MB
+
+  # 禁止新建 HIDL 接口（所有新 HAL 必须使用 AIDL）
+  # 现有 HIDL 接口仅允许维护（minor bump）
+  forbid_new_hidl_interfaces: true
+
+  # 所有 HIDL 接口必须注册 passthrough 或 binderized 实现
+  require_registered_implementation: true
+
+  # 禁止在 HIDL callback 接口中使用 oneway（可能导致回调丢失）
+  forbid_oneway_in_callback_interface: false  # AOSP 中存在合法用法
+
+  # FMQ（Fast Message Queue）使用必须附带内存模型说明注释
+  require_fmq_usage_comment: true
+
+# ------------------------------------------------------------------
+# 迁移策略（HIDL → AIDL）
+# ------------------------------------------------------------------
+migration:
+  # 新增方法（minor bump）时，优先评估能否用 AIDL 实现
+  warn_aidl_migration_candidate: true
+
+  # 所有 HIDL 接口必须有对应的 AIDL 迁移计划文档
+  # （在接口目录下的 MIGRATION.md 或注释中说明）
+  require_migration_plan: false  # 当前为建议，不强制
+
+  # HIDL 接口必须标注预期废弃版本（Android 版本号）
+  require_deprecation_notice: false  # 建议在注释中标注
+
+# ------------------------------------------------------------------
+# 命名规范
+# ------------------------------------------------------------------
+naming:
+  # 包名格式：android.hardware.<name>@<major>.<minor>
+  #           vendor.<name>.hardware.<name>@<major>.<minor>
+  package_pattern: '^(android\.(hardware|hidl)|vendor\.[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*)\.(\w+)@[0-9]+\.[0-9]+$'
+
+  # 接口名：必须以 I 开头，PascalCase
+  interface_pattern: '^I[A-Z][A-Za-z0-9]+$'
+
+  # 类型名（struct / enum / union）：PascalCase
+  type_pattern: '^[A-Z][A-Za-z0-9]+$'
+
+  # 方法名：lowerCamelCase
+  method_pattern: '^[a-z][a-zA-Z0-9]+$'
+
+  # enum 成员：UPPER_SNAKE_CASE
+  enum_member_pattern: '^[A-Z][A-Z0-9_]+$'
+
+  # callback 接口必须包含 Callback 后缀
+  callback_interface_pattern: '^I[A-Z][A-Za-z0-9]+Callback$'

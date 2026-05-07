@@ -256,15 +256,15 @@
     <!-- finalize() 必须调用 super.finalize() -->
     <module name="SuperFinalize"/>
 
-    <!-- 不允许内联条件（三元运算符嵌套使用除外）：禁止 if (a ? b : c) -->
-    <!-- 已注释，因三元运算符在表达式中是正常用法
-    <module name="AvoidInlineConditionals"/> -->
+    <!-- 禁止内联条件（三元运算符）— 强制使用完整 if/else 以提升可读性 -->
+    <module name="AvoidInlineConditionals"/>
 
-    <!-- 禁止魔法数字（仅 -1, 0, 1 除外） -->
+    <!-- 禁止魔法数字（仅 0, 1 除外；所有其他数值必须定义为命名常量）-->
     <module name="MagicNumber">
-      <property name="ignoreNumbers" value="-1, 0, 1"/>
-      <property name="ignoreAnnotation" value="true"/>
-      <property name="ignoreHashCodeMethod" value="true"/>
+      <property name="ignoreNumbers" value="0, 1"/>
+      <property name="ignoreAnnotation" value="false"/>
+      <property name="ignoreHashCodeMethod" value="false"/>
+      <property name="ignoreFieldDeclaration" value="false"/>
     </module>
 
     <!-- 简化布尔表达式：禁止 b == true、b != false 等 -->
@@ -340,6 +340,186 @@
       <property name="format" value="\.printStackTrace\(\)"/>
       <property name="message" value="不允许使用 printStackTrace()，请使用日志框架"/>
       <property name="ignoreComments" value="true"/>
+    </module>
+
+    <!-- ===== 文件结构 ===== -->
+
+    <!-- 每个 Java 文件只允许有一个顶层类/接口/枚举 -->
+    <module name="OneTopLevelClass"/>
+
+    <!-- 文件名必须与顶层类名完全一致（大小写敏感）-->
+    <module name="OuterTypeFilename"/>
+
+    <!-- 内部类 / 内部接口 / 内部枚举声明必须在所有成员之后 -->
+    <module name="InnerTypeLast"/>
+
+    <!-- ===== 注解 ===== -->
+
+    <!-- 注解必须独占一行，不允许与被注解元素同行 -->
+    <module name="AnnotationLocation">
+      <property name="allowSamelineSingleParameterlessAnnotation" value="false"/>
+    </module>
+
+    <!-- 注解使用风格一致：紧凑无数组风格，无多余括号 -->
+    <module name="AnnotationUseStyle">
+      <property name="elementStyle" value="compact_no_array"/>
+      <property name="closingParens" value="never"/>
+      <property name="trailingArrayComma" value="never"/>
+    </module>
+
+    <!-- 禁止使用 @SuppressWarnings("all")，只允许具体的检查名称 -->
+    <module name="SuppressWarnings">
+      <property name="format" value="^all$"/>
+    </module>
+
+    <!-- ===== Javadoc 增强 ===== -->
+
+    <!-- @param / @return / @throws / @deprecated 顺序强制固定 -->
+    <module name="AtclauseOrder">
+      <property name="tagOrder" value="@param, @return, @throws, @deprecated"/>
+    </module>
+
+    <!-- Javadoc 标签位置必须正确（@param 等不能出现在描述文字之间）-->
+    <module name="JavadocBlockTagLocation"/>
+
+    <!-- @param @return @throws 等标签必须有非空描述文字 -->
+    <module name="NonEmptyAtclauseDescription"/>
+
+    <!-- 摘要第一句不允许以废话片段开头，并须以句点结束 -->
+    <module name="SummaryJavadoc">
+      <property name="forbiddenSummaryFragments"
+                value="^@return the *|^This method returns |^A [{]@code [a-zA-Z0-9]+[}]( is a )"/>
+      <property name="period" value="."/>
+    </module>
+
+    <!-- 单行 Javadoc 中不应包含块标签 -->
+    <module name="SingleLineJavadoc">
+      <property name="ignoreInlineTags" value="false"/>
+    </module>
+
+    <!-- ===== 异常处理（最严格）===== -->
+
+    <!-- 禁止 catch 过宽的异常类型（必须捕获具体异常类）-->
+    <module name="IllegalCatch">
+      <property name="illegalClassNames"
+                value="Exception, RuntimeException, Error, Throwable,
+                       NullPointerException, ArrayIndexOutOfBoundsException,
+                       IndexOutOfBoundsException, ClassCastException"/>
+    </module>
+
+    <!-- 禁止 throws 声明过宽的异常类型 -->
+    <module name="IllegalThrows">
+      <property name="illegalClassNames"
+                value="Error, RuntimeException, Throwable, Exception,
+                       NullPointerException"/>
+    </module>
+
+    <!-- 禁止 finalize() 方法（Java 9+ 已废弃，存在安全隐患）-->
+    <module name="NoFinalizer"/>
+
+    <!-- ===== 复杂度（补充）===== -->
+
+    <!-- NPath 复杂度上限：100（与圈复杂度互补，衡量可执行路径数）-->
+    <module name="NPathComplexity">
+      <property name="max" value="100"/>
+    </module>
+
+    <!-- 非注释源码行数（NCSS）：方法≤60，类≤400，文件≤800 -->
+    <module name="JavaNCSS">
+      <property name="methodMaximum" value="60"/>
+      <property name="classMaximum" value="400"/>
+      <property name="fileMaximum" value="800"/>
+    </module>
+
+    <!-- 类数据抽象耦合（实例化的不同外部类型数量）：上限 10 -->
+    <module name="ClassDataAbstractionCoupling">
+      <property name="max" value="10"/>
+    </module>
+
+    <!-- ===== 方法约束 ===== -->
+
+    <!-- 单类方法数上限（含各可见性独立限制）-->
+    <module name="MethodCount">
+      <property name="maxTotal" value="15"/>
+      <property name="maxPrivate" value="10"/>
+      <property name="maxPackage" value="5"/>
+      <property name="maxProtected" value="5"/>
+      <property name="maxPublic" value="12"/>
+    </module>
+
+    <!-- 每个方法最多 3 个 return 语句（void 方法最多 1 个）-->
+    <module name="ReturnCount">
+      <property name="max" value="3"/>
+      <property name="maxForVoid" value="1"/>
+    </module>
+
+    <!-- ===== 变量约束 ===== -->
+
+    <!-- 能声明为 final 的局部变量必须声明为 final（含增强 for 循环变量）-->
+    <module name="FinalLocalVariable">
+      <property name="validateEnhancedForLoopVariable" value="true"/>
+    </module>
+
+    <!-- 禁止局部变量或参数遮蔽（shadow）成员字段 -->
+    <module name="HiddenField">
+      <property name="ignoreConstructorParameter" value="false"/>
+      <property name="ignoreSetter" value="false"/>
+      <property name="ignoreAbstractMethods" value="false"/>
+    </module>
+
+    <!-- 变量声明与首次使用之间允许距离≤3 行 -->
+    <module name="VariableDeclarationUsageDistance">
+      <property name="allowedDistance" value="3"/>
+      <property name="ignoreFinal" value="false"/>
+    </module>
+
+    <!-- ===== 代码结构 ===== -->
+
+    <!-- 类内声明顺序：static 变量 → 实例变量 → 构造器 → 方法 -->
+    <module name="DeclarationOrder"/>
+
+    <!-- 重载方法必须连续声明，不允许穿插其他方法 -->
+    <module name="OverloadMethodsDeclarationOrder"/>
+
+    <!-- ===== 字符串 ===== -->
+
+    <!-- 相同字符串字面量不允许出现超过 1 次（必须提取为常量）-->
+    <module name="MultipleStringLiterals">
+      <property name="allowedDuplicates" value="1"/>
+    </module>
+
+    <!-- ===== 格式 ===== -->
+
+    <!-- 类成员（字段、方法、构造器等）之间必须有空行 -->
+    <module name="EmptyLineSeparator">
+      <property name="allowNoEmptyLineBetweenFields" value="false"/>
+      <property name="allowMultipleEmptyLines" value="false"/>
+      <property name="allowMultipleEmptyLinesInsideClassMembers" value="false"/>
+    </module>
+
+    <!-- 注释缩进必须与跟随的代码缩进一致 -->
+    <module name="CommentsIndentation"/>
+
+    <!-- 禁止行尾拖尾注释（// ...），注释应置于代码行上方 -->
+    <module name="TrailingComment"/>
+
+    <!-- ===== 嵌套深度 ===== -->
+
+    <!-- if 语句嵌套不超过 3 层 -->
+    <module name="NestedIfDepth">
+      <property name="max" value="3"/>
+    </module>
+
+    <!-- try 块嵌套不超过 2 层 -->
+    <module name="NestedTryDepth">
+      <property name="max" value="2"/>
+    </module>
+
+    <!-- ===== 入口点控制 ===== -->
+
+    <!-- 禁止在非入口类中出现 public static void main(String[]) 方法 -->
+    <module name="UncommentedMain">
+      <property name="excludedClasses" value="^Main$|^Application$|^App$|^Launcher$"/>
     </module>
 
   </module>

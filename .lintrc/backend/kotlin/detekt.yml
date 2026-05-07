@@ -2,8 +2,6 @@
 detekt:
   # 错误阈值：超过此数量 CI 失败
   maxIssues: 0
-  # 基线文件（忽略已知问题，逐步改善）
-  baseline: detekt-baseline.xml
   config:
     validation: true
     warningsAsErrors: true
@@ -54,7 +52,7 @@ complexity:
     constructorThreshold: 5
     ignoreDefaultParameters: false
     ignoreDataClasses: false
-    ignoreAnnotated: ["Inject"]
+    ignoreAnnotated: []
 
   LargeClass:
     active: true
@@ -73,7 +71,7 @@ complexity:
 
   NamedArguments:
     active: true
-    threshold: 3  # 超过 3 个参数建议使用具名参数
+    threshold: 2  # 超过 2 个参数建议使用具名参数
 
   NestedBlockDepth:
     active: true
@@ -82,9 +80,9 @@ complexity:
   StringLiteralDuplication:
     active: true
     threshold: 2
-    ignoreAnnotation: true
-    excludeStringsWithLessThan5Characters: true
-    ignoreStringsRegex: "$^"
+    ignoreAnnotation: false
+    excludeStringsWithLessThan5Characters: false
+    ignoreStringsRegex: ""
 
 # ============================================================
 # 相关性检查（Coroutines）
@@ -115,7 +113,7 @@ empty-blocks:
 
   EmptyCatchBlock:
     active: true
-    allowedExceptionNameRegex: "_|(ignore|expected).*"
+    allowedExceptionNameRegex: ""
 
   EmptyClassBlock:
     active: true
@@ -199,10 +197,8 @@ exceptions:
 
   SwallowedException:
     active: true
-    ignoredExceptionTypes:
-      - InterruptedException
-      - MalformedURLException
-    allowedExceptionNameRegex: "_|(ignore|expected).*"
+    ignoredExceptionTypes: []
+    allowedExceptionNameRegex: ""
 
   ThrowingExceptionFromFinally:
     active: true
@@ -212,10 +208,7 @@ exceptions:
 
   ThrowingExceptionsWithoutMessageOrCause:
     active: true
-    allowedExceptionTypes:
-      - IllegalArgumentException
-      - IllegalStateException
-      - IOException
+    allowedExceptionTypes: []
 
   TooGenericExceptionCaught:
     active: true
@@ -228,7 +221,7 @@ exceptions:
       - IndexOutOfBoundsException
       - RuntimeException
       - Throwable
-    allowedExceptionNameRegex: "_|(ignore|expected).*"
+    allowedExceptionNameRegex: ""
 
   TooGenericExceptionThrown:
     active: true
@@ -262,7 +255,8 @@ naming:
     enumEntryPattern: "[A-Z][_A-Z0-9]*"
 
   ForbiddenClassName:
-    active: false
+    active: true
+    forbiddenName: []
 
   FunctionMaxLength:
     active: true
@@ -271,15 +265,13 @@ naming:
   FunctionMinLength:
     active: true
     minimumFunctionNameLength: 3
-    ignoreFunction:
-      - main
+    ignoreFunction: []
 
   FunctionNaming:
     active: true
     functionPattern: "([a-z][a-zA-Z0-9]*)|(`.*`)"
     excludeClassPattern: "$^"
-    ignoreAnnotated:
-      - Composable
+    ignoreAnnotated: []
 
   FunctionParameterNaming:
     active: true
@@ -331,14 +323,7 @@ naming:
   VariableMinLength:
     active: true
     minimumVariableNameLength: 2
-    ignoreVariable:
-      - i
-      - j
-      - k
-      - x
-      - y
-      - z
-      - e
+    ignoreVariable: []
 
   VariableNaming:
     active: true
@@ -364,8 +349,7 @@ performance:
 
   SpreadOperator:
     active: true
-    excludedClasses:
-      - "io.kotest.matchers.string.StringMatchers"
+    excludedClasses: []
 
   UnnecessaryPartOfBinaryExpression:
     active: true
@@ -468,13 +452,11 @@ potential-bugs:
 
   UnsafeCallOnNullableType:
     active: true
-    excludes:
-      - "**/test/**"
+    excludes: []
 
   UnsafeCast:
     active: true
-    excludes:
-      - "**/test/**"
+    excludes: []
 
   UselessPostfixExpression:
     active: true
@@ -537,10 +519,28 @@ style:
         value: "FIXME:"
       - reason: "Revisit before release"
         value: "STOPSHIP:"
+      - reason: "Resolve TODO before committing"
+        value: "TODO:"
+      - reason: "Remove hack before committing"
+        value: "HACK:"
+      - reason: "Remove workaround before committing"
+        value: "XXX:"
     allowedPatterns: ""
 
   ForbiddenImport:
-    active: false
+    active: true
+    imports:
+      - value: "kotlin.io.println"
+        reason: "Use a logging framework instead of println"
+      - value: "kotlin.io.print"
+        reason: "Use a logging framework instead of print"
+      - value: "java.lang.System"
+        reason: "Use a logging framework instead of System.out/err"
+      - value: "java.util.logging.*"
+        reason: "Use a structured logging framework"
+      - value: "java.lang.Thread.sleep"
+        reason: "Thread.sleep indicates poor design; use coroutine delay"
+    forbiddenPatterns: ""
 
   ForbiddenVoid:
     active: true
@@ -559,19 +559,18 @@ style:
   MagicNumber:
     active: true
     ignoreNumbers:
-      - "-1"
       - "0"
       - "1"
-    ignoreHashCodeFunction: true
+    ignoreHashCodeFunction: false
     ignorePropertyDeclaration: false
     ignoreLocalVariableDeclaration: false
     ignoreConstantDeclaration: true
-    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: false
     ignoreAnnotation: false
-    ignoreNamedArgument: true
+    ignoreNamedArgument: false
     ignoreEnums: false
     ignoreRanges: false
-    ignoreExtensionFunctions: true
+    ignoreExtensionFunctions: false
 
   MandatoryBracesIfStatements:
     active: true
@@ -635,11 +634,10 @@ style:
 
   ReturnCount:
     active: true
-    max: 3
-    excludedFunctions:
-      - equals
+    max: 2
+    excludedFunctions: []
     excludeLabeled: false
-    excludeReturnFromLambda: true
+    excludeReturnFromLambda: false
     excludeGuardClauses: false
 
   SafeCast:
@@ -706,7 +704,7 @@ style:
 
   UnusedParameter:
     active: true
-    allowedNames: "ignored|expected"
+    allowedNames: ""
 
   UnusedPrivateMember:
     active: true
@@ -714,7 +712,7 @@ style:
 
   UnusedPrivateProperty:
     active: true
-    allowedNames: "_"
+    allowedNames: ""
 
   UseAnyOrNoneInsteadOfFind:
     active: true
@@ -746,7 +744,7 @@ style:
     active: true
 
   UseLet:
-    active: false
+    active: true
 
   UseOrEmpty:
     active: true
@@ -769,5 +767,4 @@ style:
 
   WildcardImport:
     active: true
-    excludeImports:
-      - "kotlinx.android.synthetic.*"
+    excludeImports: []

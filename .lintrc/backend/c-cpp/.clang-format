@@ -1,4 +1,4 @@
-# clang-format 配置文件 — 适用于 C 源代码
+# clang-format 配置文件 — 适用于 C/C++ 源代码（Android / U-Boot / Kernel 嵌入式项目）
 ---
 Language:        Cpp
 BasedOnStyle:    LLVM
@@ -10,12 +10,44 @@ UseTab:                  Never
 IndentCaseLabels:        true
 IndentCaseBlocks:        false
 ContinuationIndentWidth: 4
+IndentGotoLabels:           true
+IndentPPDirectives:         AfterHash
+IndentExternBlock:          Indent
+IndentWrappedFunctionNames: true
 
 # 行宽
 ColumnLimit: 100
 
 # 大括号风格（Allman：大括号独占一行）
 BreakBeforeBraces: Allman
+BraceWrapping:
+  AfterCaseLabel:        true
+  AfterClass:            true
+  AfterControlStatement: Always
+  AfterEnum:             true
+  AfterFunction:         true
+  AfterNamespace:        true
+  AfterObjCDeclaration:  true
+  AfterStruct:           true
+  AfterUnion:            true
+  AfterExternBlock:      true
+  BeforeCatch:           true
+  BeforeElse:            true
+  BeforeLambdaBody:      true
+  BeforeWhile:           true
+  IndentBraces:          false
+  SplitEmptyFunction:    true
+  SplitEmptyRecord:      true
+  SplitEmptyNamespace:   true
+
+# 自动为 if/while/for 单语句体插入大括号（clang-format 15+，消除 dangling-else 等安全风险）
+InsertBraces: true
+
+# 移除语句后多余的分号（clang-format 16+）
+RemoveSemicolon: true
+
+# 函数/类/变量定义块之间强制插入空行（clang-format 14+）
+SeparateDefinitionBlocks: Always
 
 # 禁止短代码合并为单行
 AllowShortBlocksOnASingleLine:     Never
@@ -33,24 +65,35 @@ AllowAllParametersOfDeclarationOnNextLine: false
 
 # 对齐
 AlignConsecutiveAssignments:
-  Enabled:        true
+  Enabled:          true
   AcrossEmptyLines: false
   AcrossComments:   false
+  AlignCompound:    true
+  PadOperators:     true
 AlignConsecutiveMacros:
   Enabled:          true
   AcrossEmptyLines: true
   AcrossComments:   true
 AlignConsecutiveDeclarations:
-  Enabled:          false
+  Enabled:          true
+  AcrossEmptyLines: false
+  AcrossComments:   false
+AlignConsecutiveBitFields:
+  Enabled:          true
+  AcrossEmptyLines: false
+  AcrossComments:   false
+AlignArrayOfStructures:  Right
 AlignEscapedNewlines:    Right
 AlignOperands:           Align
 AlignTrailingComments:
-  Kind:    Always
+  Kind:           Always
   OverEmptyLines: 1
 
 # 指针和引用对齐（右侧，紧贴变量名）
-PointerAlignment:   Right
-ReferenceAlignment: Right
+PointerAlignment:       Right
+ReferenceAlignment:     Right
+DerivePointerAlignment: false
+QualifierAlignment:     Right
 
 # 换行规则
 BreakBeforeTernaryOperators: true
@@ -61,28 +104,51 @@ BreakBeforeBinaryOperators:  None
 SortIncludes:     CaseSensitive
 IncludeBlocks:    Regroup
 IncludeCategories:
-  # 系统头文件 <...>
+  # Linux 内核头文件（最高优先级）
+  - Regex:           '^<linux/.+>'
+    Priority:        1
+    SortPriority:    10
+  # Android/HAL 系统头文件
+  - Regex:           '^<android/.+>'
+    Priority:        1
+    SortPriority:    15
+  # U-Boot 头文件
+  - Regex:           '^<u-boot/.+>'
+    Priority:        1
+    SortPriority:    16
+  # 其他系统/标准库头文件 <...>
   - Regex:           '^<.+>'
     Priority:        2
+    SortPriority:    20
   # 本地头文件 "..."
-  - Regex:           '^".+"'
-    Priority:        1
+  - Regex:           '^"..+"'
+    Priority:        3
+    SortPriority:    30
 
 # 空格规则
-SpaceAfterCStyleCast:           false
-SpaceBeforeAssignmentOperators: true
-SpaceBeforeParens:              ControlStatements
-SpaceInEmptyBlock:              false
-SpaceInEmptyParentheses:        false
-SpacesBeforeTrailingComments:   2
-SpacesInParentheses:            false
-SpacesInSquareBrackets:         false
-SpacesInCStyleCastParentheses:  false
-SpaceAroundPointerQualifiers:   Default
+SpaceAfterCStyleCast:                  false
+SpaceAfterLogicalNot:                  false
+SpaceAfterTemplateKeyword:             true
+SpaceAroundPointerQualifiers:          Default
+SpaceBeforeAssignmentOperators:        true
+SpaceBeforeCaseColon:                  false
+SpaceBeforeParens:                     ControlStatements
+SpaceBeforeRangeBasedForLoopColon:     true
+SpaceBeforeSquareBrackets:             false
+SpaceInEmptyBlock:                     false
+SpaceInEmptyParentheses:               false
+SpacesBeforeTrailingComments:          2
+SpacesInAngles:                        Never
+SpacesInCStyleCastParentheses:         false
+SpacesInConditionalStatement:          false
+SpacesInContainerLiterals:             false
+SpacesInParentheses:                   false
+SpacesInSquareBrackets:                false
 
 # 空行控制
 MaxEmptyLinesToKeep:              1
 KeepEmptyLinesAtTheStartOfBlocks: false
+KeepEmptyLinesAtEndOfFile:        false
 
 # 注释重排
 ReflowComments: true
@@ -90,6 +156,233 @@ ReflowComments: true
 # 宏定义
 MacroBlockBegin: ""
 MacroBlockEnd:   ""
+
+# 嵌入式 / 内核常用循环宏（影响缩进）
+ForEachMacros:
+  # --- 通用链表（Linux kernel list.h）---
+  - foreach
+  - list_for_each
+  - list_for_each_safe
+  - list_for_each_entry
+  - list_for_each_entry_safe
+  - list_for_each_entry_reverse
+  - list_for_each_entry_reverse_safe
+  - list_for_each_entry_from
+  - list_for_each_entry_from_reverse
+  - list_for_each_entry_from_safe
+  - list_for_each_prev
+  - list_for_each_prev_safe
+  - list_for_each_continue
+  # --- 哈希链表（hlist）---
+  - hlist_for_each
+  - hlist_for_each_safe
+  - hlist_for_each_entry
+  - hlist_for_each_entry_safe
+  - hlist_for_each_entry_from
+  - hlist_for_each_entry_continue
+  - hlist_for_each_entry_continue_rcu
+  - hlist_nulls_for_each_entry
+  - hlist_nulls_for_each_entry_safe
+  - hlist_nulls_for_each_entry_from
+  # --- 红黑树 ---
+  - rbtree_postorder_for_each_entry_safe
+  # --- 位操作遍历 ---
+  - for_each_set_bit
+  - for_each_set_bit_from
+  - for_each_clear_bit
+  - for_each_clear_bit_from
+  - for_each_set_clump8
+  # --- 设备树（OF framework）---
+  - for_each_child_of_node
+  - for_each_available_child_of_node
+  - for_each_property_of_node
+  - for_each_node_by_name
+  - for_each_node_by_type
+  - for_each_node_with_property
+  - for_each_matching_node
+  - for_each_matching_node_and_match
+  - for_each_reserved_mem_region
+  # --- CPU / NUMA ---
+  - for_each_cpu
+  - for_each_cpu_not
+  - for_each_cpu_and
+  - for_each_cpu_or
+  - for_each_online_cpu
+  - for_each_possible_cpu
+  - for_each_present_cpu
+  - for_each_node
+  - for_each_online_node
+  - for_each_node_state
+  - for_each_node_with_cpus
+  # --- 设备 / 驱动 ---
+  - bus_for_each_dev
+  - bus_for_each_drv
+  - device_for_each_child
+  - class_for_each_device
+  # --- PCI ---
+  - for_each_pci_dev
+  - pci_for_each_dma_alias
+  # --- IRQ ---
+  - for_each_irq_nr
+  # --- 内存 ---
+  - for_each_mem_range
+  - for_each_mem_range_rev
+  - for_each_free_mem_range
+  - for_each_free_mem_range_reverse
+  # --- Rockchip 平台特定 ---
+  - rockchip_for_each_domain
+  # --- Android Binder ---
+  - for_each_binder_proc
+  # --- U-Boot ---
+  - uboot_for_each_node
+
+# 独立语句宏（clang-format 将其视为完整语句，不与后续行合并）
+StatementMacros:
+  # --- 编译期断言 ---
+  - BUILD_BUG_ON
+  - BUILD_BUG_ON_ZERO
+  - BUILD_BUG_ON_MSG
+  - BUILD_BUG
+  - STATIC_ASSERT
+  # --- 运行期断言 / 警告 ---
+  - BUG_ON
+  - WARN
+  - WARN_ON
+  - WARN_ON_ONCE
+  - WARN_ONCE
+  - WARN_TAINT
+  - WARN_TAINT_ONCE
+  - BUG
+  # --- 锁依赖注解 ---
+  - lockdep_assert_held
+  - lockdep_assert_held_read
+  - lockdep_assert_held_write
+  - lockdep_assert_not_held
+  - lockdep_assert_irqs_enabled
+  - lockdep_assert_irqs_disabled
+  # --- Qt ---
+  - Q_UNUSED
+  - Q_OBJECT
+  - Q_GADGET
+  # --- GTest / GMock ---
+  - ASSERT_TRUE
+  - ASSERT_FALSE
+  - ASSERT_EQ
+  - ASSERT_NE
+  - ASSERT_LT
+  - ASSERT_LE
+  - ASSERT_GT
+  - ASSERT_GE
+  - ASSERT_STREQ
+  - ASSERT_STRNE
+  - EXPECT_TRUE
+  - EXPECT_FALSE
+  - EXPECT_EQ
+  - EXPECT_NE
+  - EXPECT_LT
+  - EXPECT_LE
+  - EXPECT_GT
+  - EXPECT_GE
+
+# 空白敏感宏（格式化器不改动其参数）
+WhitespaceSensitiveMacros:
+  - STRINGIZE
+  - PP_STRINGIZE
+  - BOOST_PP_STRINGIZE
+  - pr_fmt
+  - LINUXINCLUDE
+  - asm
+
+# GCC / Clang 函数属性宏
+AttributeMacros:
+  # --- 编译器提示 ---
+  - __capability
+  - __output
+  - __unused
+  - __maybe_unused
+  - __always_inline
+  - __noinline
+  - __must_check
+  - __must_hold
+  - __printf
+  - __scanf
+  - __deprecated
+  - __weak
+  - __alias
+  - __cold
+  - __hot
+  - __pure
+  - __const
+  - __noreturn
+  # --- 内存布局 ---
+  - __packed
+  - __aligned
+  - __alignas
+  - __section
+  # --- 初始化 / 退出段 ---
+  - __init
+  - __exit
+  - __initdata
+  - __exitdata
+  - __initconst
+  - __ro_after_init
+  - __read_mostly
+  - __nosavedata
+  # --- 地址空间（Sparse 注解）---
+  - __iomem
+  - __user
+  - __kernel
+  - __percpu
+  - __force
+  - __rcu
+  - __pmem
+  - __noderef
+  - __safe
+  # --- 锁注解（Sparse / Clang Thread Safety）---
+  - __acquires
+  - __releases
+  - __acquired_before
+  - __acquired_after
+  - __exclusive_locks_required
+  - __shared_locks_required
+  - __locks_excluded
+  - __lock_returned
+  - __guarded_by
+  - __pt_guarded_by
+  - __attribute_capability
+  # --- Android 特定 ---
+  - ANDROID_API
+  - ANDROID_DEPRECATED
+  - __INTRODUCED_IN
+  - __DEPRECATED_IN
+  - __REMOVED_IN
+
+# 类型宏
+TypenameMacros:
+  - STACK_OF
+  - LIST_HEAD  - HLIST_HEAD
+  - RB_ROOT
+  - RB_ROOT_CACHED
+  - DECLARE_KFIFO
+  - DECLARE_KFIFO_PTR
+  - ATOMIC_INIT
+  - ATOMIC64_INIT
+  - DEFINE_MUTEX
+  - DEFINE_SPINLOCK
+  - DEFINE_RWLOCK
+  - DEFINE_SEMAPHORE
+  - DEFINE_WAIT_QUEUE_HEAD
+# 换行惩罚参数（影响格式化器在候选换行点之间的权衡）
+PenaltyBreakAssignment:               2
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment:                  300
+PenaltyBreakFirstLessLess:            120
+PenaltyBreakOpenParenthesis:          0
+PenaltyBreakString:                   1000
+PenaltyBreakTemplateDeclaration:      10
+PenaltyExcessCharacter:               1000000
+PenaltyIndentedWhitespace:            0
+PenaltyReturnTypeOnItsOwnLine:        60
 
 # C++ 特有设置
 # 访问修饰符（public / private / protected）相对类体的偏移量（顶格对齐）

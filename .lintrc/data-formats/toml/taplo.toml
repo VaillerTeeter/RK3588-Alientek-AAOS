@@ -1,46 +1,272 @@
-# Taplo — TOML 代码格式化配置
-# 用法：taplo fmt --check --config .lintrc/data-formats/toml/taplo.toml <files>
-# 文档：https://taplo.tamasfe.dev/configuration/
+# Taplo — TOML 格式化与 Schema 验证配置（全量严格模式）
+# 用法：
+#   taplo fmt   --check --config .lintrc/data-formats/toml/taplo.toml <files>
+#   taplo check --config .lintrc/data-formats/toml/taplo.toml <files>
+# 文档（格式化选项）：https://taplo.tamasfe.dev/configuration/formatter-options.html
+# 文档（配置文件）：  https://taplo.tamasfe.dev/configuration/file.html
 
+# ── 覆盖范围：所有 TOML 文件 ────────────────────────────────────
+include = ["**/*.toml"]
+
+# ── 全局格式化选项（所有选项均显式声明）────────────────────────
 [formatting]
-# 对齐注释（行尾 #...）
-align_comments = true
 
-# 对齐数组中的条目
-align_entries = false
+# -- 对齐 --------------------------------------------------------
+# 同一连续块内的条目值列垂直对齐
+align_entries        = true
+# 行尾注释垂直对齐
+align_comments       = true
 
-# 数组中允许多少个内联元素
-array_auto_collapse = true
-array_auto_expand = true
+# -- 数组 --------------------------------------------------------
+# 超出 column_width 时自动展开为多行
+array_auto_expand    = true
+# 不超 column_width 时自动折叠为单行
+array_auto_collapse  = true
+# 多行数组末尾必须有逗号
 array_trailing_comma = true
+# 单行数组内省略额外空白：[1, 2] 而非 [ 1, 2 ]
+compact_arrays       = true
 
-# 列宽（超过时展开数组/表格）
-column_width = 120
+# -- 内联表格 ----------------------------------------------------
+# 内联表格内保留空白：{ key = "val" } 而非 {key="val"}
+compact_inline_tables = false
+# 展开内联表格内的数组值
+inline_table_expand   = true
 
-# 缩进字符
-indent_string = "  " # 2 空格
+# -- 等号周围 ----------------------------------------------------
+# 保留 key = value 两侧空格
+compact_entries      = false
 
-# 表格间的空行数
-indent_tables = false
+# -- 缩进 --------------------------------------------------------
+# 缩进单位：2 个空格
+indent_string        = "  "
+# 子表格不做额外缩进（保持主流 TOML 风格）
+indent_tables        = false
+# 表格头下的条目不做额外缩进（保持主流 TOML 风格）
+indent_entries       = false
+
+# -- 列宽 --------------------------------------------------------
+# 超过此宽度时数组自动展开；80 列是行业通用标准
+column_width         = 80
+
+# -- 空行 --------------------------------------------------------
+# 连续空行最多允许 1 行（比默认的 2 更严格）
+allowed_blank_lines  = 1
+
+# -- 排序 --------------------------------------------------------
+# 对未被空行分隔的 key 强制按字母序排列
+reorder_keys          = true
+# 对未被空行分隔的数组值强制按字母序排列
+reorder_arrays        = true
+# 内联表格内 key 强制按字母序排列
+reorder_inline_tables = true
+
+# -- 行尾符 / 文件末尾 -----------------------------------------
+# 强制 LF 行尾，禁止 CRLF
+crlf             = false
+# 文件末尾必须有换行符
 trailing_newline = true
 
-# 重新排序 key（通常关闭，以保持语义顺序）
-reorder_keys = false
-reorder_arrays = false
-
+# ── Schema 全局设置 ──────────────────────────────────────────────
 [schema]
-# 开启 JSON Schema 验证（taplo check）
 enabled = true
 
-# 内置已知 TOML 文件的 schema 关联
-[[rule]]
-name = "Cargo.toml"
-include = ["Cargo.toml", "Cargo.lock"]
+# ── 按文件类型关联 JSON Schema ────────────────────────────────────
 
-[[rule]]
-name = "pyproject.toml"
-include = ["pyproject.toml"]
+# ── Rust ────────────────────────────────────────────────────────
 
+# Cargo.toml — Rust 包清单
 [[rule]]
-name = "taplo.toml"
-include = ["taplo.toml", ".taplo.toml"]
+include = ["**/Cargo.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/cargo.json"
+
+# Cargo.lock — 由 cargo 自动生成，禁止对 key/数组排序（破坏 diff 可读性）
+[[rule]]
+include = ["**/Cargo.lock"]
+
+[rule.formatting]
+reorder_arrays = false
+reorder_keys   = false
+
+# Makefile.toml — cargo-make 任务运行器
+[[rule]]
+include = ["**/Makefile.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/cargo-make.json"
+
+# rust-toolchain.toml — Rust 工具链版本声明
+[[rule]]
+include = ["**/rust-toolchain.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/rust-toolchain.json"
+
+# rustfmt.toml / .rustfmt.toml — rustfmt 格式化配置
+[[rule]]
+include = ["**/rustfmt.toml", "**/.rustfmt.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/rustfmt.json"
+
+# .cargo/mutants.toml — cargo-mutants 配置
+[[rule]]
+include = ["**/.cargo/mutants.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/cargo-mutants-config.json"
+
+# ── Python ───────────────────────────────────────────────────────
+
+# pyproject.toml — Python 项目元数据（PEP 517/518/621）
+[[rule]]
+include = ["**/pyproject.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/pyproject.json"
+
+# ruff.toml / .ruff.toml — Ruff 静态分析配置
+[[rule]]
+include = ["**/ruff.toml", "**/.ruff.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/ruff.json"
+
+# uv.toml — uv Python 包管理器
+[[rule]]
+include = ["**/uv.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/uv.json"
+
+# hatch.toml — Hatch 构建工具
+[[rule]]
+include = ["**/hatch.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/hatch.json"
+
+# pdm.toml — PDM 包管理器
+[[rule]]
+include = ["**/pdm.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/pdm.json"
+
+# tox.toml — tox 测试自动化
+[[rule]]
+include = ["**/tox.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/tox-dev/tox/main/src/tox/tox.schema.json"
+
+# pixi.toml — Pixi 环境管理器
+[[rule]]
+include = ["**/pixi.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/prefix-dev/pixi/main/schema/schema.json"
+
+# pylock.toml / pylock.*.toml — PEP 751 锁文件（由工具生成，禁止排序）
+[[rule]]
+include = ["**/pylock.toml", "**/pylock.*.toml"]
+
+[rule.formatting]
+reorder_arrays = false
+reorder_keys   = false
+
+# ── 代码质量工具 ─────────────────────────────────────────────────
+
+# typos.toml / _typos.toml / .typos.toml — 拼写检查
+[[rule]]
+include = ["**/typos.toml", "**/_typos.toml", "**/.typos.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/crate-ci/typos/master/config.schema.json"
+
+# committed.toml — Commit 消息规范检查
+[[rule]]
+include = ["**/committed.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/crate-ci/committed/master/config.schema.json"
+
+# bacon.toml — Rust 后台构建监视
+[[rule]]
+include = ["**/bacon.toml"]
+
+[rule.schema]
+path = "https://dystroy.org/bacon/.bacon.schema.json"
+
+# maturin.toml — PyO3/maturin Rust-Python 绑定构建
+[[rule]]
+include = ["**/maturin.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/maturin.json"
+
+# stylua.toml / .stylua.toml — Lua 格式化工具
+[[rule]]
+include = ["**/stylua.toml", "**/.stylua.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/stylua.json"
+
+# rumdl.toml / .rumdl.toml — Markdown 格式化工具
+[[rule]]
+include = ["**/rumdl.toml", "**/.rumdl.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/rumdl.json"
+
+# tach.toml — Python 模块边界检查
+[[rule]]
+include = ["**/tach.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/gauge-sh/tach/refs/heads/main/public/tach-toml-schema.json"
+
+# release-plz.toml / .release-plz.toml — Rust crate 自动发布
+[[rule]]
+include = ["**/release-plz.toml", "**/.release-plz.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/MarcoIeni/release-plz/main/.schema/latest.json"
+
+# changelogging.toml — 版本日志自动化
+[[rule]]
+include = ["**/changelogging.toml"]
+
+[rule.schema]
+path = "https://raw.githubusercontent.com/nekitdev/changelogging/main/changelogging.schema.json"
+
+# ── 环境与工具管理 ───────────────────────────────────────────────
+
+# .mise.toml / mise.toml — mise 多语言工具版本管理
+[[rule]]
+include = [
+  "**/.mise.toml",
+  "**/.mise.*.toml",
+  "**/mise.toml",
+  "**/.mise/config.toml",
+  "**/.mise/conf.d/*.toml",
+]
+
+[rule.schema]
+path = "https://mise.jdx.dev/schema/mise.json"
+
+# starship.toml — Shell 提示符配置
+[[rule]]
+include = ["**/starship.toml"]
+
+[rule.schema]
+path = "https://starship.rs/config-schema.json"
+
+# ── Taplo 自身配置文件 ──────────────────────────────────────────
+[[rule]]
+include = ["**/taplo.toml", "**/.taplo.toml"]
+
+[rule.schema]
+path = "https://www.schemastore.org/taplo.json"

@@ -1,36 +1,141 @@
 ---
-# cmake-format configuration
-# https://cmake-format.readthedocs.io/
+# cmake-format / cmake-lint — CMake 文件格式化与静态分析（全量严格模式）
+# 文档：https://cmake-format.readthedocs.io/en/latest/configopts.html
+# 用法：
+#   cmake-format \
+#     --config-files .lintrc/infrastructure/build-systems/.cmake-format.yml \
+#     -i <file.cmake>
+#   cmake-lint \
+#     --config-files .lintrc/infrastructure/build-systems/.cmake-format.yml \
+#     <file.cmake>
 
+# ------------------------------------------------------------------
+# 格式化选项
+# ------------------------------------------------------------------
 format:
-  line_width: 120
+  # 最大行宽（80 列 = CMake 社区标准）
+  line_width: 80
+  # 缩进宽度（2 空格）
   tab_size: 2
+  # 禁止制表符缩进，始终使用空格
   use_tabchars: false
-  max_prefix_chars: 32
-  max_lines_hwrap: 2
+  # 分数缩进降级策略：保留剩余空格而非圆整到下一制表位
+  fractional_tab_policy: 'use-space'
+  # 子组（parg/kwarg 组）数超过此值时强制垂直布局
+  max_subgroups_hwrap: 2
+  # 位置参数组超过此数量时强制垂直布局
+  max_pargs_hwrap: 6
+  # 命令行位置参数组水平折行时允许的最大行数
+  max_rows_cmdline: 2
+  # 流控制名称（if/while/foreach）后不插入空格
+  separate_ctrl_name_with_space: false
+  # 函数名与括号之间不插入空格
+  separate_fn_name_with_space: false
+  # 多行语句的右括号独立成行（dangling paren）
+  dangle_parens: true
+  # 悬挂括号对齐方式：对齐到语句起始列
+  dangle_align: 'prefix'
+  # 语句前缀字符数小于此值时禁止嵌套布局
   min_prefix_chars: 4
-  emit_byteorder_mark: false
-  command_case: canonical
-  keyword_case: upper
-  dangle_parens: false
-  dangle_align: prefix
+  # 语句前缀字符数超过 tab_size + 此值时强制嵌套布局
+  max_prefix_chars: 10
+  # 水平折行超过此行数时拒绝该布局方案
+  max_lines_hwrap: 2
+  # 换行风格：Unix LF（嵌入式 / Linux 内核环境标准）
+  line_ending: 'unix'
+  # 命令名大小写：canonical（与 cmake 官方文档一致）
+  command_case: 'canonical'
+  # 关键字参数大小写：upper（UPPER_CASE）
+  keyword_case: 'upper'
+  # 不预设强制换行的命令列表
+  always_wrap: []
+  # 对已知可排序的参数列表启用排序（如 target_sources 的源文件列表）
+  enable_sort: true
+  # 不自动推断可排序性，必须通过注释显式声明
+  autosort: false
+  # 无法将内容适配到行宽时报错退出，而非静默使用最差布局
+  require_valid_layout: true
+  # 布局决策覆盖（使用默认值，不覆盖任何节点）
+  layout_passes: {}
 
-lint:
-  public_var_unset_pattern: '^[A-Z][0-9A-Z_]+'
-  internal_var_pattern: '^_?[a-z][a-z0-9_]+'
-  local_var_pattern: '^[a-z][a-z0-9_]+'
-  private_var_pattern: '^_[a-z][a-z0-9_]+'
-  function_pattern: '^[a-z][a-z0-9_]+'
-  macro_pattern: '^[a-z][a-z0-9_]+'
-  max_statement_spacing: 2
-  min_statement_spacing: 1
-  max_returns: 3
-  max_branches: 10
-  max_arguments: 5
-  max_localvars: 15
-  max_statements: 40
-
+# ------------------------------------------------------------------
+# 注释重排与格式化选项
+# ------------------------------------------------------------------
 markup:
+  # 无序列表符号
   bullet_char: '*'
-  enum_char: .
+  # 有序列表序号后的标点
+  enum_char: '.'
+  # 不将首个注释块视为字面量（允许参与重排格式化）
   first_comment_is_literal: false
+  # 不设置字面量注释正则 —— 所有注释均参与格式化
+  literal_comment_pattern: ~
+  # 代码围栏匹配正则（默认）
+  fence_pattern: '^\s*([`~]{3}[`~]*)(.*)$'
+  # 分隔线匹配正则（默认）
+  ruler_pattern: '^\s*[^\w\s]{3}.*[^\w\s]{3}$'
+  # 行尾注释标记（显式标注跟随前一参数的注释）
+  explicit_trailing_pattern: '#<'
+  # 连续 hash 字符数达此值时不做 lstrip（允许 lazy hash ruler）
+  hashruler_min_length: 10
+  # 规范化 hash 分隔线：首 # 后补一个空格，并填满列宽
+  canonicalize_hashrulers: true
+  # 启用注释标记解析与重排
+  enable_markup: true
+
+# ------------------------------------------------------------------
+# 文件编码选项
+# ------------------------------------------------------------------
+encode:
+  # 不输出 BOM（UTF-8 无 BOM）
+  emit_byteorder_mark: false
+  # 输入文件编码
+  input_encoding: 'utf-8'
+  # 输出文件编码（cmake 官方仅声明支持 UTF-8）
+  output_encoding: 'utf-8'
+
+# ------------------------------------------------------------------
+# 静态分析（cmake-lint）选项
+# ------------------------------------------------------------------
+lint:
+  # 不禁用任何检查码 —— D/C/W 全系列完整执行
+  disabled_codes: []
+
+  # 命名规范（正则）：
+  #   函数：lower_snake_case（与 cmake 内建命令一致）
+  function_pattern: '[0-9a-z_]+'
+  #   宏：UPPER_SNAKE_CASE（区分宏与函数）
+  macro_pattern: '[0-9A-Z_]+'
+  #   全局（cache）变量：UPPER_SNAKE_CASE
+  global_var_pattern: '[A-Z][0-9A-Z_]+'
+  #   内部全局语义变量：_UPPER_SNAKE_CASE
+  internal_var_pattern: '_[A-Z][0-9A-Z_]+'
+  #   局部变量：lower_snake_case
+  local_var_pattern: '[a-z][a-z0-9_]+'
+  #   私有目录变量：_lower_snake_case
+  private_var_pattern: '_[0-9a-z_]+'
+  #   公开目录变量：UPPER_SNAKE_CASE
+  public_var_pattern: '[A-Z][0-9A-Z_]+'
+  #   函数/宏参数及 foreach 循环变量：lower_snake_case
+  argument_var_pattern: '[a-z][a-z0-9_]+'
+  #   关键字参数名：UPPER_SNAKE_CASE
+  keyword_pattern: '[A-Z][0-9A-Z_]+'
+
+  # C0201 启发式：循环内条件匹配数超此值时认定为自定义解析器
+  max_conditionals_custom_parser: 2
+
+  # 语句间最少空行数
+  min_statement_spacing: 1
+  # 语句间最多空行数（设为 1，禁止超过 1 行的空行堆叠）
+  max_statement_spacing: 1
+
+  # 函数/宏最多 return 点数（默认 6，严格收紧到 3）
+  max_returns: 3
+  # 函数/宏最多分支数（默认 12，严格收紧到 10）
+  max_branches: 10
+  # 函数/宏最多参数数（与默认值一致）
+  max_arguments: 5
+  # 函数/宏最多局部变量数（与默认值一致）
+  max_localvars: 15
+  # 函数/宏最多语句数（默认 50，严格收紧到 40）
+  max_statements: 40

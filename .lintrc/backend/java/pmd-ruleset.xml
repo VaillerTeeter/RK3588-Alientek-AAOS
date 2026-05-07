@@ -14,21 +14,27 @@
   <!-- ══════════════════════════════════════════════════
       Best Practices（最佳实践）
   ══════════════════════════════════════════════════ -->
-  <rule ref="category/java/bestpractices.xml">
-    <!-- 允许使用具体集合实现类（ArrayList、HashMap 等）而非接口类型；
-      LooseCoupling 即"松散耦合": 建议用 List/Map 等接口声明变量。
-      如需强制接口类型，请移除此排除项 -->
-    <exclude name="LooseCoupling"/>
-  </rule>
+  <!-- 最佳实践：全量启用，不排除任何规则 -->
+  <rule ref="category/java/bestpractices.xml"/>
 
   <!-- ══════════════════════════════════════════════════
       Code Style（代码风格）
   ══════════════════════════════════════════════════ -->
-  <rule ref="category/java/codestyle.xml">
-    <!-- 允许短变量名（i/j/k 等循环变量） -->
-    <exclude name="ShortVariable"/>
-    <!-- 允许长变量名（业务代码描述性命名） -->
-    <exclude name="LongVariable"/>
+  <!-- 代码风格：全量启用 -->
+  <rule ref="category/java/codestyle.xml"/>
+
+  <!-- 自定义：短变量名最短 2 字符（单字符循环变量需由团队规范里专项约定）-->
+  <rule ref="category/java/codestyle.xml/ShortVariable">
+    <properties>
+      <property name="minimum" value="2"/>
+    </properties>
+  </rule>
+
+  <!-- 自定义：长变量名最长 40 字符 -->
+  <rule ref="category/java/codestyle.xml/LongVariable">
+    <properties>
+      <property name="maximum" value="40"/>
+    </properties>
   </rule>
 
   <!-- ══════════════════════════════════════════════════
@@ -100,12 +106,8 @@
   <!-- ══════════════════════════════════════════════════
       Error Prone（易错模式）
   ══════════════════════════════════════════════════ -->
-  <rule ref="category/java/errorprone.xml">
-    <!-- 允许在条件中赋值（如 while ((line = reader.readLine()) != null)） -->
-    <exclude name="AssignmentInOperand"/>
-    <!-- 允许 null 赋值给返回值（框架中合理） -->
-    <exclude name="ReturnEmptyCollectionRatherThanNull"/>
-  </rule>
+  <!-- 易错模式：全量启用，不排除任何规则 -->
+  <rule ref="category/java/errorprone.xml"/>
 
   <!-- ══════════════════════════════════════════════════
       Performance（性能）
@@ -125,11 +127,7 @@
   <!-- ══════════════════════════════════════════════════
       Documentation（文档）
   ══════════════════════════════════════════════════ -->
-  <rule ref="category/java/documentation.xml">
-    <properties>
-      <property name="violationSuppressXPath"
-      value="//ClassOrInterfaceDeclaration[@Public='false']"/>
-    </properties>
-  </rule>
+  <!-- 文档：全量启用，不对非 public 类豪免 -->
+  <rule ref="category/java/documentation.xml"/>
 
 </ruleset>

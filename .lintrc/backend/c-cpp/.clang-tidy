@@ -1,20 +1,19 @@
 # clang-tidy 配置文件 — 适用于 C 源代码
 ---
 # 启用的检查类别（逗号分隔，- 前缀表示禁用）
+# 涵盖 Android / Linux Kernel / U-Boot / AOSP HAL 全部适用规则
 Checks: >-
+  android-*,
   bugprone-*,
   cert-*,
   clang-analyzer-*,
+  concurrency-*,
+  hicpp-*,
+  linuxkernel-*,
   misc-*,
   performance-*,
   portability-*,
-  readability-*,
-  -bugprone-easily-swappable-parameters,
-  -cert-dcl37-c,
-  -cert-dcl51-cpp,
-  -misc-no-recursion,
-  -readability-magic-numbers,
-  -readability-identifier-length
+  readability-*
 
 # 将所有警告视为错误
 WarningsAsErrors: "*"
@@ -25,8 +24,116 @@ HeaderFilterRegex: ".*"
 # 格式化风格引用 .clang-format 文件
 FormatStyle: file
 
-# 命名规范检查选项
 CheckOptions:
+  # ============================================================
+  # 函数规模限制（readability-function-size）
+  # ============================================================
+  # 函数最大行数（内核函数允许稍长）
+  - key:   readability-function-size.LineThreshold
+    value: '200'
+  # 函数最大语句数
+  - key:   readability-function-size.StatementThreshold
+    value: '800'
+  # 函数最大分支数（if/switch/loop）
+  - key:   readability-function-size.BranchThreshold
+    value: '30'
+  # 函数最大参数数
+  - key:   readability-function-size.ParameterThreshold
+    value: '8'
+  # 最大嵌套深度
+  - key:   readability-function-size.NestingThreshold
+    value: '6'
+  # 函数最大局部变量数
+  - key:   readability-function-size.VariableThreshold
+    value: '30'
+
+  # ============================================================
+  # 魔法数字（readability-magic-numbers）
+  # ============================================================
+  # 允许不触发警告的整数值（0/1/-1 及常见位宽/对齐值）
+  - key:   readability-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;-1;4;8;16;32;64;128;256;512;1024;2048;4096;8192'
+  # 允许不触发警告的浮点值
+  - key:   readability-magic-numbers.IgnoredFloatingPointValues
+    value: '0.0;1.0;-1.0;0.5;2.0'
+  # 枚举值中的魔法数字不报告
+  - key:   readability-magic-numbers.IgnoreAllInEnumeration
+    value: 'true'
+  # typedef / using 中的魔法数字不报告（位域宽度常见）
+  - key:   readability-magic-numbers.IgnoreBitFieldsWidths
+    value: 'true'
+
+  # ============================================================
+  # 标识符最短长度（readability-identifier-length）
+  # ============================================================
+  - key:   readability-identifier-length.MinimumVariableNameLength
+    value: '2'
+  # 允许的短变量名（循环计数器、常用缩写）
+  - key:   readability-identifier-length.IgnoredVariableNames
+    value: '^[ijk_]$|^id$|^fd$|^rc$|^nb$|^nr$|^sz$|^fn$|^op$|^kp$|^in$|^ok$'
+  - key:   readability-identifier-length.MinimumParameterNameLength
+    value: '2'
+  - key:   readability-identifier-length.IgnoredParameterNames
+    value: '^[ijk_]$|^id$|^fd$|^rc$|^nb$|^nr$|^sz$|^fn$|^op$|^kp$|^in$|^ok$'
+  - key:   readability-identifier-length.MinimumLoopCounterNameLength
+    value: '1'
+  - key:   readability-identifier-length.IgnoredLoopCounterNames
+    value: '^[ijk]$'
+
+  # ============================================================
+  # CERT 整数字面量后缀（cert-dcl16-c）
+  # ============================================================
+  - key:   cert-dcl16-c.NewSuffixes
+    value: 'L;LL;LU;LLU'
+
+  # ============================================================
+  # bugprone-easily-swappable-parameters
+  # ============================================================
+  # 最少参数数量才触发检查（避免 (int a, int b) 被过度报告）
+  - key:   bugprone-easily-swappable-parameters.MinimumLength
+    value: '2'
+  # 允许相邻同类型参数的最大数量
+  - key:   bugprone-easily-swappable-parameters.MaximumNumberOfParameters
+    value: '4'
+
+  # ============================================================
+  # bugprone-argument-comment
+  # ============================================================
+  - key:   bugprone-argument-comment.StrictMode
+    value: 'true'
+
+  # ============================================================
+  # bugprone-assert-side-effect
+  # ============================================================
+  - key:   bugprone-assert-side-effect.AssertMacros
+    value: 'assert,BUG_ON,WARN_ON,pr_debug'
+  - key:   bugprone-assert-side-effect.CheckFunctionCalls
+    value: 'false'
+
+  # ============================================================
+  # bugprone-string-integer-assignment（整型误赋给字符串）
+  # ============================================================
+  - key:   bugprone-string-integer-assignment.CharTypdefsToIgnore
+    value: ''
+
+  # ============================================================
+  # misc-include-cleaner（头文件整洁）
+  # ============================================================
+  - key:   misc-include-cleaner.IgnoreHeaders
+    value: 'linux/types.h;linux/kernel.h;linux/module.h'
+
+  # ============================================================
+  # readability-braces-around-statements — 已由 InsertBraces 处理
+  # readability-implicit-bool-conversion
+  # ============================================================
+  - key:   readability-implicit-bool-conversion.AllowIntegerConditions
+    value: 'false'
+  - key:   readability-implicit-bool-conversion.AllowPointerConditions
+    value: 'false'
+
+  # ============================================================
+  # 命名规范（readability-identifier-naming）
+  # ============================================================
   # 函数名：snake_case
   - key:   readability-identifier-naming.FunctionCase
     value: lower_case
@@ -44,6 +151,17 @@ CheckOptions:
     value: lower_case
   - key:   readability-identifier-naming.GlobalVariablePrefix
     value: g_
+  # 静态（文件作用域）变量：snake_case，加 s_ 前缀
+  - key:   readability-identifier-naming.StaticVariableCase
+    value: lower_case
+  - key:   readability-identifier-naming.StaticVariablePrefix
+    value: s_
+  # 常量：UPPER_CASE
+  - key:   readability-identifier-naming.ConstantCase
+    value: UPPER_CASE
+  # 全局常量：UPPER_CASE
+  - key:   readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
   # 宏定义：UPPER_CASE
   - key:   readability-identifier-naming.MacroDefinitionCase
     value: UPPER_CASE
@@ -55,9 +173,20 @@ CheckOptions:
     value: lower_case
   - key:   readability-identifier-naming.TypedefSuffix
     value: _t
-  # struct 名：snake_case
+  # struct 标签名：snake_case
   - key:   readability-identifier-naming.StructCase
     value: lower_case
   # enum 名：snake_case
   - key:   readability-identifier-naming.EnumCase
+    value: lower_case
+  # union 名：snake_case
+  - key:   readability-identifier-naming.UnionCase
+    value: lower_case
+  # 函数指针类型（typedef）：snake_case + _fn_t
+  - key:   readability-identifier-naming.TypedefCase
+    value: lower_case
+  - key:   readability-identifier-naming.TypedefSuffix
+    value: _t
+  # 标签（goto label）：snake_case
+  - key:   readability-identifier-naming.LabelCase
     value: lower_case

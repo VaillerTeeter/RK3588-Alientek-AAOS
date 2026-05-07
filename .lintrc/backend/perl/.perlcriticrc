@@ -1,34 +1,397 @@
-# Perl::Critic configuration
-# See: https://metacpan.org/dist/Perl-Critic/view/lib/Perl/Critic.pm
+# Perl::Critic configuration — 全面严格模式
+# https://metacpan.org/dist/Perl-Critic/view/lib/Perl/Critic.pm
+#
+# severity = 1 表示报告所有级别（1~5）的违规，是最严格的全局阈值。
+# 各策略块中的 severity 是该策略违规的严重程度评级，不是过滤阈值。
 
 severity  = 1
-theme     = core + pbp + security
+theme     = core + pbp + security + bugs + maintenance
 force     = 0
 
-[CodeLayout::RequireTidyCode]
-perltidy = perltidy -l=120 -i=4 -ci=4 -se -b -bext=/ -nola
+# ==========================================================================
+# BuiltinFunctions
+# ==========================================================================
 
-[Variables::ProhibitPunctuationVars]
-allow = $_ $! $0 $/ $\ $, $" $; $@ $? $|
+[BuiltinFunctions::ProhibitBooleanGrep]
+severity = 3
 
-[Subroutines::ProhibitExcessComplexity]
-max_mccabe = 10
+[BuiltinFunctions::ProhibitComplexMappings]
+severity = 3
+max_items = 1
 
-[Modules::RequireVersionVar]
-severity = 4
+[BuiltinFunctions::ProhibitLvalueSubstr]
+severity = 3
 
-[Modules::ProhibitMultiplePackages]
-severity = 5
+[BuiltinFunctions::ProhibitReverseSortBlock]
+severity = 3
 
 [BuiltinFunctions::ProhibitSleepViaSelect]
 severity = 5
 
+[BuiltinFunctions::ProhibitStringyEval]
+severity = 5
+allow_includes = 0
+
+[BuiltinFunctions::ProhibitStringySplit]
+severity = 3
+
+[BuiltinFunctions::ProhibitUniversalCan]
+severity = 3
+
+[BuiltinFunctions::ProhibitUniversalIsa]
+severity = 3
+
+[BuiltinFunctions::ProhibitUselessTopic]
+severity = 2
+
+[BuiltinFunctions::RequireBlockGrep]
+severity = 4
+
+[BuiltinFunctions::RequireBlockMap]
+severity = 4
+
+[BuiltinFunctions::RequireGlobFunction]
+severity = 5
+
+[BuiltinFunctions::RequireSimpleSortBlock]
+severity = 3
+
+# ==========================================================================
+# ClassHierarchies
+# ==========================================================================
+
+[ClassHierarchies::ProhibitAutoloading]
+severity = 3
+
+[ClassHierarchies::ProhibitExplicitISA]
+severity = 3
+
+[ClassHierarchies::ProhibitOneArgBless]
+severity = 5
+
+[ClassHierarchies::ProhibitUseBase]
+severity = 3
+
+# ==========================================================================
+# CodeLayout
+# ==========================================================================
+
+[CodeLayout::ProhibitHardTabs]
+severity = 3
+allow_leading_tabs = 0
+
+[CodeLayout::ProhibitParensWithBuiltins]
+severity = 1
+
+[CodeLayout::ProhibitQuotedWordLists]
+severity = 1
+min_elements = 2
+
+[CodeLayout::ProhibitTrailingWhitespace]
+severity = 1
+
+[CodeLayout::RequireConsistentNewlines]
+severity = 4
+
+[CodeLayout::RequireFinalNewline]
+severity = 1
+
+[CodeLayout::RequireTidyCode]
+severity = 1
+perltidy = perltidy -l=120 -i=4 -ci=4 -se -b -bext=/ -nola
+
+[CodeLayout::RequireTrailingCommaAtNewline]
+severity = 1
+
+[CodeLayout::RequireUseUTF8]
+severity = 1
+
+# ==========================================================================
+# ControlStructures
+# ==========================================================================
+
+[ControlStructures::ProhibitCascadingIfElse]
+severity = 3
+max_elsif = 2
+
+[ControlStructures::ProhibitDeepNests]
+severity = 3
+max_nests = 4
+
+[ControlStructures::ProhibitMutatingListFunctions]
+severity = 5
+
+[ControlStructures::ProhibitNegativeExpressionsInUnlessAndUntil]
+severity = 3
+
+[ControlStructures::ProhibitPostfixControls]
+severity = 2
+
+[ControlStructures::ProhibitUnlessBlocks]
+severity = 2
+
+[ControlStructures::ProhibitUnreachableCode]
+severity = 4
+
+[ControlStructures::ProhibitUntilBlocks]
+severity = 2
+
+[ControlStructures::RequireRewinding]
+severity = 4
+
+[ControlStructures::RequireShortCircuit]
+severity = 4
+
+# ==========================================================================
+# Documentation
+# ==========================================================================
+
+[Documentation::RequireEndBeforePod]
+severity = 4
+
+[Documentation::RequirePodAtEnd]
+severity = 1
+
+[Documentation::RequirePodSections]
+severity = 1
+source_ok_sections   = NAME SYNOPSIS DESCRIPTION USAGE OPTIONS REQUIRED ARGUMENTS DIAGNOSTICS CONFIGURATION AND ENVIRONMENT DEPENDENCIES INCOMPATIBILITIES BUGS AND LIMITATIONS AUTHOR LICENSE AND COPYRIGHT
+lib_sections         = NAME SYNOPSIS DESCRIPTION METHODS DIAGNOSTICS CONFIGURATION AND ENVIRONMENT DEPENDENCIES INCOMPATIBILITIES BUGS AND LIMITATIONS AUTHOR LICENSE AND COPYRIGHT
+
+# ==========================================================================
+# ErrorHandling
+# ==========================================================================
+
+[ErrorHandling::RequireCarping]
+severity = 3
+
+[ErrorHandling::RequireCheckingReturnValueOfEval]
+severity = 3
+
+# ==========================================================================
+# InputOutput
+# ==========================================================================
+
+[InputOutput::ProhibitBacktickOperators]
+severity = 3
+
+[InputOutput::ProhibitBarewordFileHandles]
+severity = 5
+
+[InputOutput::ProhibitExplicitStdin]
+severity = 4
+
+[InputOutput::ProhibitInteractiveTest]
+severity = 4
+
+[InputOutput::ProhibitJoinedReadline]
+severity = 3
+
+[InputOutput::ProhibitReadlineInForLoop]
+severity = 4
+
+[InputOutput::ProhibitTwoArgOpen]
+severity = 5
+
+[InputOutput::RequireBracedFileHandleWithPrint]
+severity = 1
+
+[InputOutput::RequireCheckedClose]
+severity = 1
+
+[InputOutput::RequireCheckedOpen]
+severity = 5
+
 [InputOutput::RequireCheckedSyscalls]
+severity = 1
+# 检查所有内置函数，不排除任何函数
 functions = :builtins
-exclude_functions = print say warn
+
+[InputOutput::RequireEncodingWithUTF8Layer]
+severity = 1
+
+# ==========================================================================
+# Miscellanea
+# ==========================================================================
+
+[Miscellanea::ProhibitFormats]
+severity = 3
+
+[Miscellanea::ProhibitNoisyQuotes]
+severity = 2
+
+[Miscellanea::ProhibitObfuscation]
+severity = 3
+
+[Miscellanea::ProhibitTies]
+severity = 2
+
+[Miscellanea::ProhibitUnrestrictedNoCritic]
+severity = 4
+
+[Miscellanea::ProhibitUselessNoCritic]
+severity = 2
+
+# ==========================================================================
+# Modules
+# ==========================================================================
+
+[Modules::ProhibitAutomaticExportation]
+severity = 4
+
+[Modules::ProhibitConditionalUseStatements]
+severity = 3
+
+[Modules::ProhibitEvilModules]
+severity = 5
+modules = Carp::Clan Class::ISA Error JSON POSIX Switch vars
+
+[Modules::ProhibitMultiplePackages]
+severity = 5
+
+[Modules::ProhibitUseQuotedVersion]
+severity = 3
+
+[Modules::RequireEndWithOne]
+severity = 4
+
+[Modules::RequireExplicitPackage]
+severity = 4
+
+[Modules::RequireFilenameMatchesPackage]
+severity = 3
+
+[Modules::RequireNoMatchVarsWithUseEnglish]
+severity = 2
+
+[Modules::RequireVersionVar]
+severity = 2
+
+# ==========================================================================
+# NamingConventions
+# ==========================================================================
+
+[NamingConventions::Capitalization]
+severity = 1
+packages                 = ::[A-Z][a-zA-Z0-9]*
+scripts                  = [a-z][a-z0-9_]*
+subroutines              = [a-z][a-z0-9_]*
+local_variables          = [a-z][a-z0-9_]*
+file_lexical_variables   = [a-z][a-z0-9_]*
+scoped_lexical_variables = [a-z][a-z0-9_]*
+global_variables         = :[a-z][a-z0-9_]*
+constants                = [A-Z][A-Z0-9_]*
+
+[NamingConventions::ProhibitAmbiguousNames]
+severity = 2
+forbid = abstract bases close contract data default element file interface last left long new no obj open pos record right second set string to type
+
+[NamingConventions::ProhibitMixedCaseSubs]
+severity = 2
+
+[NamingConventions::ProhibitMixedCaseVars]
+severity = 2
+
+# ==========================================================================
+# References
+# ==========================================================================
+
+[References::ProhibitDoubleSigils]
+severity = 2
+
+# ==========================================================================
+# RegularExpressions
+# ==========================================================================
+
+[RegularExpressions::ProhibitCaptureWithoutTest]
+severity = 3
+
+[RegularExpressions::ProhibitComplexRegexes]
+severity = 3
+max_characters = 60
+
+[RegularExpressions::ProhibitEnumeratedClasses]
+severity = 1
+
+[RegularExpressions::ProhibitEscapedMetacharacters]
+severity = 2
+
+[RegularExpressions::ProhibitFixedStringMatches]
+severity = 2
+
+[RegularExpressions::ProhibitSingleCharAlternation]
+severity = 2
+
+[RegularExpressions::ProhibitUnusualDelimiters]
+severity = 2
+allow_all_brackets = 1
+
+[RegularExpressions::RequireBracesForMultiline]
+severity = 3
+
+[RegularExpressions::RequireDotMatchAnything]
+severity = 2
 
 [RegularExpressions::RequireExtendedFormatting]
-minimum_regex_length_to_complain_about = 20
+severity = 2
+# 所有正则表达式都必须使用 /x 扩展格式，不设最小长度豁免
+minimum_regex_length_to_complain_about = 0
+
+[RegularExpressions::RequireLineBoundaryMatching]
+severity = 2
+
+# ==========================================================================
+# Subroutines
+# ==========================================================================
+
+[Subroutines::ProhibitAmpersandSigils]
+severity = 2
+
+[Subroutines::ProhibitBuiltinHomonyms]
+severity = 4
+
+[Subroutines::ProhibitExcessComplexity]
+severity = 3
+max_mccabe = 8
+
+[Subroutines::ProhibitExplicitReturnUndef]
+severity = 4
+
+[Subroutines::ProhibitManyArgs]
+severity = 3
+max_arguments = 5
+
+[Subroutines::ProhibitNestedSubs]
+severity = 4
+
+[Subroutines::ProhibitReturnSort]
+severity = 3
+
+[Subroutines::ProhibitSubroutinePrototypes]
+severity = 4
+
+[Subroutines::ProhibitUnusedPrivateSubroutines]
+severity = 3
+
+[Subroutines::RequireArgUnpacking]
+severity = 4
+short_subroutine_statements = 0
+
+[Subroutines::RequireFinalReturn]
+severity = 4
+
+# ==========================================================================
+# TestingAndDebugging
+# ==========================================================================
+
+[TestingAndDebugging::ProhibitNoStrict]
+severity = 5
+
+[TestingAndDebugging::ProhibitNoWarnings]
+severity = 4
+
+[TestingAndDebugging::ProhibitProlongedStrictureOverride]
+severity = 4
+statements = 3
 
 [TestingAndDebugging::RequireUseStrict]
 severity = 5
@@ -36,5 +399,111 @@ severity = 5
 [TestingAndDebugging::RequireUseWarnings]
 severity = 5
 
+# ==========================================================================
+# ValuesAndExpressions
+# ==========================================================================
+
+[ValuesAndExpressions::ProhibitCommaSeparatedStatements]
+severity = 4
+
+[ValuesAndExpressions::ProhibitComplexVersion]
+severity = 3
+
+[ValuesAndExpressions::ProhibitConstantPragma]
+severity = 4
+
+[ValuesAndExpressions::ProhibitEmptyQuotes]
+severity = 2
+
+[ValuesAndExpressions::ProhibitEscapedCharacters]
+severity = 2
+
+[ValuesAndExpressions::ProhibitImplicitNewlines]
+severity = 3
+
+[ValuesAndExpressions::ProhibitInterpolationOfLiterals]
+severity = 1
+
+[ValuesAndExpressions::ProhibitLeadingZeros]
+severity = 5
+
+[ValuesAndExpressions::ProhibitLongChainsOfMethodCalls]
+severity = 2
+max_chain_length = 4
+
 [ValuesAndExpressions::ProhibitMagicNumbers]
-allowed_values = -1 0 1
+severity = 1
+# 只豁免 0 和 1，移除 -1 的豁免
+allowed_values = 0 1
+
+[ValuesAndExpressions::ProhibitMismatchedOperators]
+severity = 3
+
+[ValuesAndExpressions::ProhibitMixedBooleanOperators]
+severity = 4
+
+[ValuesAndExpressions::ProhibitNoisyQuotes]
+severity = 2
+
+[ValuesAndExpressions::ProhibitQuotesAsQuotelikeOperatorDelimiters]
+severity = 2
+
+[ValuesAndExpressions::ProhibitVersionStrings]
+severity = 3
+
+[ValuesAndExpressions::RequireConstantOnLeftSideOfComparison]
+severity = 3
+
+[ValuesAndExpressions::RequireNumberSeparators]
+severity = 1
+min_value = 1000
+
+[ValuesAndExpressions::RequireQuotedHeredocTerminator]
+severity = 4
+
+[ValuesAndExpressions::RequireUpperCaseHeredocTerminator]
+severity = 4
+
+# ==========================================================================
+# Variables
+# ==========================================================================
+
+[Variables::ProhibitAugmentedAssignmentInDeclaration]
+severity = 3
+
+[Variables::ProhibitConditionalDeclarations]
+severity = 5
+
+[Variables::ProhibitLocalVars]
+severity = 2
+
+[Variables::ProhibitMatchVars]
+severity = 3
+
+[Variables::ProhibitPackageVars]
+severity = 3
+
+[Variables::ProhibitPerl4PackageNames]
+severity = 2
+
+[Variables::ProhibitPunctuationVars]
+severity = 2
+# 不豁免任何标点变量，强制使用 English 模块的具名别名
+
+[Variables::ProhibitReusedNames]
+severity = 3
+
+[Variables::ProhibitUnusedVariables]
+severity = 3
+
+[Variables::RequireInitializationForLocalVars]
+severity = 3
+
+[Variables::RequireLexicalLoopIterators]
+severity = 4
+
+[Variables::RequireLocalizedPunctuationVars]
+severity = 4
+
+[Variables::RequireNegativeIndices]
+severity = 4

@@ -1,20 +1,52 @@
-# ShellCheck 配置 — https://www.shellcheck.net/wiki/Ignore
-# 此文件存放于 .lintrc/infrastructure/shell/，CI 会在运行 ShellCheck 前将其复制到仓库根目录（自动发现路径）
+# ShellCheck 配置（全量严格模式）
+# 文档：https://github.com/koalaman/shellcheck/wiki/Directive
+# 用法：
+#   shellcheck --rcfile .lintrc/infrastructure/shell/.shellcheckrc <script.sh>
+#   # CI 建议：将本文件复制到仓库根目录，ShellCheck 会自动发现
+#
+# 涵盖的嵌入式/构建脚本场景：
+#   init-RK3588.sh、apply-patches.sh、clean-patches.sh、
+#   rkbin/tools/*.sh、u-boot/make.sh 等
 
-# 默认 shell 方言（bash / sh / dash / ksh）
+# ------------------------------------------------------------------
+# Shell 方言
+# ------------------------------------------------------------------
+# 对无 shebang 的脚本使用 bash 方言（项目内所有脚本均使用 bash）
+# 有 shebang 的脚本会自动覆盖此设置
 shell=bash
 
-# ── 全局排除规则 ─────────────────────────────────────
-# SC2250: 参数展开中 % 和 # 的使用警告（误报率高）
-exclude=SC2250
+# ------------------------------------------------------------------
+# 数据流分析
+# ------------------------------------------------------------------
+# 显式启用扩展数据流分析，检出更多隐式错误
+# （对于 2000+ 行的自动生成脚本可在文件内用注释局部关闭）
+extended-analysis=true
 
-# ── 常见规则说明 ─────────────────────────────────────
-# SC2086: 变量引用缺少双引号          → 始终双引号包裹变量
-# SC2091: 双括号内变量展开问题        → 使用 [[ ]] 代替 [ ]
-# SC2155: 声明与赋值分离             → local/readonly 与赋值拆开
-# SC2164: cd 失败时继续执行          → 使用 cd ... || exit
-# SC2181: $? 检查返回值             → 直接在 if/while 中调用命令
-# SC2206: 未引用数组赋值             → 使用 mapfile 或明确引用
-# SC2207: 命令替换到数组             → 使用 mapfile -t arr < <(cmd)
-# SC2209: 将命令名赋给变量           → 注意区分变量名与命令名
-# SC3xxx: 非 POSIX 特性             → bash 脚本可忽略 SC3xxx 系列
+# ------------------------------------------------------------------
+# Source 文件解析
+# ------------------------------------------------------------------
+# 允许跟踪所有 source / . 语句指向的文件（不限于命令行指定的文件）
+# 对 init-RK3588.sh 等会 source 其他片段的脚本至关重要
+external-sources=true
+
+# 在脚本自身所在目录查找被 source 的文件
+source-path=SCRIPTDIR
+
+# ------------------------------------------------------------------
+# 可选检查（全部启用）
+# ------------------------------------------------------------------
+# `enable=all` 等价于逐条启用以下所有可选检查（v0.11.0）：
+#
+#   add-default-case          — case 语句缺少 *) 默认分支时提示
+#   avoid-negated-conditions  — 建议将 [ ! "$x" -eq 1 ] 改为 [ "$x" -ne 1 ]
+#   avoid-nullary-conditions  — 建议将 [ "$var" ] 改为 [ -n "$var" ]
+#   check-extra-masked-returns — 检查额外的返回值被掩盖的情况
+#   check-set-e-suppressed    — set -e 因函数调用被抑制时提示
+#   check-unassigned-uppercase — 使用未赋值的大写变量时警告
+#   deprecate-which           — 建议用 command -v 替代 which
+#   quote-safe-variables      — 对无元字符的变量也建议加引号
+#   require-double-brackets   — bash/ksh 中要求用 [[ ]] 而非 [ ]
+#   require-variable-braces   — 建议所有变量引用加花括号 ${var}
+#   useless-use-of-cat        — 检测 cat file | cmd 类型的 UUOC
+enable=all
+

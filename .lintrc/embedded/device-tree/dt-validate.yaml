@@ -1,0 +1,165 @@
+---
+# Device Tree Lint / Validate 配置 — RK3588-Alientek-AAOS 项目（全量严格模式）
+# 工具：
+#   dtc         — Device Tree Compiler（内核工具，随 Android 构建环境提供）
+#   dt-validate — YAML Schema 校验工具（pip install dtschema）
+# 文档：
+#   https://www.kernel.org/doc/html/latest/devicetree/bindings/
+#   https://github.com/devicetree-org/dt-schema
+#   https://www.kernel.org/doc/html/latest/devicetree/dt-object-internal.html
+#
+# 用法（CI）：
+#   # 步骤 1：dtc 编译检查（所有警告视为错误）
+#   dtc -I dts -O dtb \
+#     -Wno_unit_address_format \
+#     -Werror \
+#     -@ \
+#     -o /tmp/out.dtb \
+#     <file.dts>
+#
+#   # 步骤 2：dt-validate Schema 校验
+#   dt-validate \
+#     --schema Android-13/rk-kernel-5.10/Documentation/devicetree/bindings \
+#     --schema .lintrc/embedded/device-tree/schemas/ \
+#     /tmp/out.dtb
+#
+#   # 步骤 3：dtx_diff 对比（检查覆盖是否完整）
+#   dtx_diff Android-13/rk-kernel-5.10/arch/arm64/boot/dts/ <file.dts>
+
+# ------------------------------------------------------------------
+# dtc 编译器配置
+# ------------------------------------------------------------------
+dtc:
+  # 所有警告均视为错误（-Werror）
+  warnings_as_errors: true
+
+  # 禁止抑制任何警告（suppress_warnings 保持空列表）
+  # dtc 警告列表（全部启用）：
+  #   unit_address_format       — 单元地址格式不规范（应为十六进制小写）
+  #   unit_address_vs_reg       — 单元地址与 reg 属性不匹配
+  #   avoid_default_addr_size   — 缺少显式 #address-cells / #size-cells
+  #   obsolete_property         — 使用了已废弃的属性名
+  #   node_name_chars_strict    — 节点名包含不规范字符
+  #   alias_paths               — 别名路径格式问题
+  #   graph_child_address       — 图节点地址问题
+  #   simple_bus_bridge         — simple-bus/simple-mfd 桥接问题
+  suppress_warnings: []
+
+  # 生成注解（-@）：保留符号信息，便于覆盖检查
+  generate_symbols: true
+
+  # 依赖文件生成（便于增量构建）
+  generate_dependency_file: true
+
+# ------------------------------------------------------------------
+# dt-validate Schema 校验配置
+# ------------------------------------------------------------------
+dt_validate:
+  # Schema 搜索路径（相对于仓库根目录）
+  schema_dirs:
+    # 内核主线 bindings schema（最权威）
+    - Android-13/rk-kernel-5.10/Documentation/devicetree/bindings
+    # 项目自定义 schema（RK3588 vendor bindings）
+    - .lintrc/embedded/device-tree/schemas
+
+  # 严格模式：schema 校验失败立即报错退出
+  strict: true
+
+  # 显示所有错误（不在第一个错误处停止）
+  show_all_errors: true
+
+  # 要求每个节点的 compatible 字符串能匹配至少一个 schema
+  require_compatible_match: true
+
+  # 要求 compatible 字符串格式为 "<vendor>,<device>"
+  require_vendor_prefix_in_compatible: true
+
+  # 要求所有属性在 schema 中有定义（不允许未知属性）
+  require_all_properties_defined: true
+
+# ------------------------------------------------------------------
+# 节点 / 属性命名规范
+# ------------------------------------------------------------------
+style:
+  # 节点名：小写字母、数字、连字符，可选 @<unit-address>
+  # 正确示例：uart0、i2c@ff110000、gpio-leds
+  # 错误示例：UART0、i2c_controller
+  node_name_pattern: '^[a-z][a-z0-9-]*(@[0-9a-f]+)?$'
+
+  # 属性名：小写字母、数字、连字符，可以 # 开头（如 #address-cells）
+  property_name_pattern: '^#?[a-z][a-z0-9,.-]*$'
+
+  # 标签名（&label 引用）：小写字母、下划线
+  # 正确示例：uart0、i2c0、&rk3588_cru
+  label_pattern: '^[a-z][a-z0-9_]*$'
+
+  # compatible 字符串：<vendor>,<device>（均小写，连字符分隔）
+  compatible_pattern: '^[a-z][a-z0-9,-]+,[a-z][a-z0-9,-]+$'
+
+  # compatible 属性必须是节点中第一个声明的属性
+  compatible_first: true
+
+  # status 属性必须使用字符串值（"okay" / "disabled"），不允许数字
+  require_status_string: true
+
+  # 单元地址必须使用十六进制小写（如 @ff110000）
+  require_hex_unit_address: true
+
+  # 最大嵌套深度（AOSP DTS 惯例）
+  max_nesting_depth: 8
+
+# ------------------------------------------------------------------
+# 内容正确性规则
+# ------------------------------------------------------------------
+correctness:
+  # 每个带地址的节点必须有与之匹配的 reg 属性
+  require_reg_for_unit_address: true
+
+  # 每个总线节点必须显式声明 #address-cells 和 #size-cells
+  require_address_cells_on_bus: true
+
+  # interrupt-parent 必须引用有效的中断控制器
+  validate_interrupt_parent: true
+
+  # gpio 属性必须引用有效的 gpio 控制器
+  validate_gpio_references: true
+
+  # 时钟属性（clocks）必须引用有效的时钟节点
+  validate_clock_references: true
+
+  # 电源域（power-domains）必须引用有效节点
+  validate_power_domain_references: true
+
+  # pinctrl-N 属性必须引用有效的 pinmux 配置节点
+  validate_pinctrl_references: true
+
+  # memory-region 必须引用已声明的内存保留区域
+  validate_memory_region_references: true
+
+  # 禁止重复的属性声明（同一节点内）
+  forbid_duplicate_properties: true
+
+  # 禁止空节点（无任何属性或子节点）
+  forbid_empty_nodes: true
+
+  # 覆盖（overlay）文件必须以 /plugin-version/ 1; 开头
+  require_plugin_version_in_overlay: true
+
+# ------------------------------------------------------------------
+# RK3588 平台专项规则
+# ------------------------------------------------------------------
+rk3588:
+  # RK3588 vendor compatible 前缀
+  vendor_prefix: rockchip
+
+  # 所有 RK3588 外设节点必须在 compatible 中包含 "rockchip,rk3588*"
+  require_rockchip_compatible: false  # 不强制，允许通用驱动
+
+  # 时钟 ID 必须引用 include/dt-bindings/clock/rk3588-cru.h 中的定义
+  validate_clock_ids_against_header: true
+
+  # GPIO bank 编号不超过 RK3588 实际 GPIO bank 数量（GPIO0–GPIO4 = 5 banks）
+  max_gpio_bank: 4
+
+  # SPI / I2C / UART 控制器地址必须在已知地址范围内
+  validate_controller_addresses: true

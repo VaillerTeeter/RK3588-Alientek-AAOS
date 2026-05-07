@@ -1,29 +1,24 @@
 # clang-tidy 配置文件 — 适用于 C++ 源代码
 ---
 # 启用的检查类别（逗号分隔，- 前缀表示禁用）
+# 涵盖 AOSP C++（HAL / Framework / Services）及内核相邻 C++ 代码全部适用规则
 Checks: >-
+  abseil-*,
+  android-*,
   bugprone-*,
   cert-*,
   clang-analyzer-*,
+  concurrency-*,
   cppcoreguidelines-*,
+  google-*,
   hicpp-*,
+  linuxkernel-*,
   misc-*,
   modernize-*,
+  openmp-*,
   performance-*,
   portability-*,
-  readability-*,
-  -bugprone-easily-swappable-parameters,
-  -cert-dcl37-c,
-  -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
-  -cppcoreguidelines-pro-type-reinterpret-cast,
-  -cppcoreguidelines-pro-type-vararg,
-  -hicpp-no-array-decay,
-  -hicpp-vararg,
-  -misc-no-recursion,
-  -modernize-use-trailing-return-type,
-  -readability-identifier-length,
-  -readability-magic-numbers
+  readability-*
 
 # 将所有警告视为错误
 WarningsAsErrors: "*"
@@ -34,9 +29,156 @@ HeaderFilterRegex: ".*"
 # 格式化风格引用 .clang-format 文件
 FormatStyle: file
 
-# 命名规范检查选项
 CheckOptions:
-  # 函数名：snake_case
+  # ============================================================
+  # 函数规模限制（readability-function-size）
+  # ============================================================
+  - key:   readability-function-size.LineThreshold
+    value: '150'
+  - key:   readability-function-size.StatementThreshold
+    value: '800'
+  - key:   readability-function-size.BranchThreshold
+    value: '20'
+  - key:   readability-function-size.ParameterThreshold
+    value: '6'
+  - key:   readability-function-size.NestingThreshold
+    value: '5'
+  - key:   readability-function-size.VariableThreshold
+    value: '20'
+
+  # ============================================================
+  # 认知复杂度（readability-function-cognitive-complexity）
+  # ============================================================
+  - key:   readability-function-cognitive-complexity.Threshold
+    value: '25'
+  - key:   readability-function-cognitive-complexity.DescribeBasicIncrements
+    value: 'true'
+  - key:   readability-function-cognitive-complexity.IgnoreRecursive
+    value: 'false'
+
+  # ============================================================
+  # 魔法数字（readability-magic-numbers / cppcoreguidelines-avoid-magic-numbers）
+  # ============================================================
+  - key:   readability-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;-1;4;8;16;32;64;128;256;512;1024;2048;4096;8192'
+  - key:   readability-magic-numbers.IgnoredFloatingPointValues
+    value: '0.0;1.0;-1.0;0.5;2.0'
+  - key:   readability-magic-numbers.IgnoreAllInEnumeration
+    value: 'true'
+  - key:   readability-magic-numbers.IgnoreBitFieldsWidths
+    value: 'true'
+  # cppcoreguidelines 别名同步
+  - key:   cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;-1;4;8;16;32;64;128;256;512;1024;2048;4096;8192'
+  - key:   cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues
+    value: '0.0;1.0;-1.0;0.5;2.0'
+  - key:   cppcoreguidelines-avoid-magic-numbers.IgnoreAllInEnumeration
+    value: 'true'
+  - key:   cppcoreguidelines-avoid-magic-numbers.IgnoreBitFieldsWidths
+    value: 'true'
+
+  # ============================================================
+  # 标识符最短长度（readability-identifier-length）
+  # ============================================================
+  - key:   readability-identifier-length.MinimumVariableNameLength
+    value: '2'
+  - key:   readability-identifier-length.IgnoredVariableNames
+    value: '^[ijk_]$|^id$|^fd$|^rc$|^nb$|^nr$|^sz$|^fn$|^op$|^kp$|^in$|^ok$'
+  - key:   readability-identifier-length.MinimumParameterNameLength
+    value: '2'
+  - key:   readability-identifier-length.IgnoredParameterNames
+    value: '^[ijk_]$|^id$|^fd$|^rc$|^nb$|^nr$|^sz$|^fn$|^op$|^kp$|^in$|^ok$'
+  - key:   readability-identifier-length.MinimumLoopCounterNameLength
+    value: '1'
+  - key:   readability-identifier-length.IgnoredLoopCounterNames
+    value: '^[ijk]$'
+
+  # ============================================================
+  # bugprone
+  # ============================================================
+  - key:   bugprone-easily-swappable-parameters.MinimumLength
+    value: '2'
+  - key:   bugprone-easily-swappable-parameters.MaximumNumberOfParameters
+    value: '4'
+  - key:   bugprone-argument-comment.StrictMode
+    value: 'true'
+  - key:   bugprone-assert-side-effect.AssertMacros
+    value: 'assert,CHECK,DCHECK,VLOG_IS_ON'
+  - key:   bugprone-assert-side-effect.CheckFunctionCalls
+    value: 'false'
+  # 不安全的字符串函数（覆盖 C 标准库和 POSIX）
+  - key:   bugprone-not-null-terminated-result.WantToUseSafeFunctions
+    value: 'true'
+
+  # ============================================================
+  # hicpp-signed-bitwise（有符号整数不应参与位运算）
+  # ============================================================
+  - key:   hicpp-signed-bitwise.IgnorePositiveIntegerLiterals
+    value: 'false'
+
+  # ============================================================
+  # misc
+  # ============================================================
+  - key:   misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: 'true'
+  - key:   misc-include-cleaner.IgnoreHeaders
+    value: 'android/.*|utils/.*'
+
+  # ============================================================
+  # modernize-use-default-member-init
+  # ============================================================
+  - key:   modernize-use-default-member-init.UseAssignment
+    value: 'false'
+
+  # ============================================================
+  # modernize-pass-by-value
+  # ============================================================
+  - key:   modernize-pass-by-value.IncludeStyle
+    value: 'llvm'
+
+  # ============================================================
+  # modernize-use-trailing-return-type
+  # ============================================================
+  - key:   modernize-use-trailing-return-type.IncludeStyle
+    value: 'llvm'
+
+  # ============================================================
+  # performance-move-const-arg（不必要的 std::move）
+  # ============================================================
+  - key:   performance-move-const-arg.CheckTriviallyCopyableMove
+    value: 'true'
+
+  # ============================================================
+  # google-readability-namespace-comments
+  # ============================================================
+  - key:   google-readability-namespace-comments.ShortNamespaceLines
+    value: '10'
+  - key:   google-readability-namespace-comments.SpacesBeforeComments
+    value: '2'
+
+  # ============================================================
+  # readability-implicit-bool-conversion（隐式布尔转换）
+  # ============================================================
+  - key:   readability-implicit-bool-conversion.AllowIntegerConditions
+    value: 'false'
+  - key:   readability-implicit-bool-conversion.AllowPointerConditions
+    value: 'false'
+
+  # ============================================================
+  # cppcoreguidelines-special-member-functions
+  # 强制 Rule of Zero / Rule of Five
+  # ============================================================
+  - key:   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: 'true'
+  - key:   cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
+    value: 'false'
+  - key:   cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted
+    value: 'true'
+
+  # ============================================================
+  # 命名规范（readability-identifier-naming）
+  # ============================================================
+  # 函数名（自由函数）：snake_case
   - key:   readability-identifier-naming.FunctionCase
     value: lower_case
   # 方法名（类成员函数）：snake_case
@@ -69,6 +211,11 @@ CheckOptions:
   # 类名：PascalCase（UpperCamelCase）
   - key:   readability-identifier-naming.ClassCase
     value: CamelCase
+  # 抽象接口类（I 前缀 + PascalCase）
+  - key:   readability-identifier-naming.AbstractClassCase
+    value: CamelCase
+  - key:   readability-identifier-naming.AbstractClassPrefix
+    value: I
   # struct 名：PascalCase（C++ struct 常作类使用）
   - key:   readability-identifier-naming.StructCase
     value: CamelCase
@@ -77,6 +224,9 @@ CheckOptions:
     value: lower_case
   # 模板类型参数：PascalCase
   - key:   readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+  # 模板非类型参数：UPPER_CASE
+  - key:   readability-identifier-naming.TemplateTemplateParameterCase
     value: CamelCase
   # 宏定义：UPPER_CASE
   - key:   readability-identifier-naming.MacroDefinitionCase
@@ -87,6 +237,12 @@ CheckOptions:
   # 枚举名（enum class）：PascalCase
   - key:   readability-identifier-naming.EnumCase
     value: CamelCase
+  # 常量（constexpr / const 全局）：UPPER_CASE
+  - key:   readability-identifier-naming.ConstantCase
+    value: UPPER_CASE
+  # 常量成员：UPPER_CASE
+  - key:   readability-identifier-naming.ConstantMemberCase
+    value: UPPER_CASE
   # 类型别名（using）：PascalCase
   - key:   readability-identifier-naming.TypeAliasCase
     value: CamelCase
@@ -95,3 +251,9 @@ CheckOptions:
     value: lower_case
   - key:   readability-identifier-naming.TypedefSuffix
     value: _t
+  # 概念（C++20 Concept）：PascalCase
+  - key:   readability-identifier-naming.ConceptCase
+    value: CamelCase
+  # 标签（goto label）：snake_case
+  - key:   readability-identifier-naming.LabelCase
+    value: lower_case

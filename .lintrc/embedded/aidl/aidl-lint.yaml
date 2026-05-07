@@ -1,0 +1,104 @@
+---
+# AIDL Lint 配置 — RK3588-Alientek-AAOS 项目（全量严格模式）
+# 工具：aidl（Android AIDL 编译器，AOSP prebuilt）
+# 文档：https://source.android.com/docs/core/architecture/aidl/overview
+#
+# 注意：aidl 编译器不直接读取本文件。
+#       本文件作为 CI 脚本的权威配置来源，所有 CI 脚本必须从此文件读取参数。
+#
+# 用法（CI）：
+#   aidl \
+#     --lang=java \
+#     --structured \
+#     --stability vintf \
+#     --min_sdk_version current \
+#     -o /tmp/aidl-out \
+#     <file.aidl>
+#
+#   # 验证冻结接口哈希（不允许已冻结接口被修改）：
+#   aidl --checkapi=all \
+#     -r android.hardware:hardware/interfaces \
+#     android.hardware.<name>@<version>
+
+# ------------------------------------------------------------------
+# 编译器强制参数
+# ------------------------------------------------------------------
+compiler_flags:
+  # 结构化模式：强制所有 parcelable 使用结构化声明
+  # 禁止 legacy "unstructured" parcelable（无字段声明的空壳）
+  structured: true
+
+  # VINTF 稳定性声明：所有跨进程 HAL 接口必须标注 @VintfStability
+  stability: vintf
+
+  # 最低 SDK 版本：current = 当前 AOSP API level
+  min_sdk_version: current
+
+  # 目标生成语言（CI 中对所有语言后端进行验证）
+  lang:
+    - java
+    - cpp
+    - ndk
+    - rust
+
+# ------------------------------------------------------------------
+# 接口设计策略
+# ------------------------------------------------------------------
+policy:
+  # 禁止 unstructured parcelable（无字段声明）
+  forbid_unstructured_parcelables: true
+
+  # 禁止在 structured 接口中使用裸 IBinder
+  # （应使用 FileDescriptor 或具体接口类型）
+  forbid_raw_ibinder: true
+
+  # 禁止无类型参数的集合（List、Map 必须带类型参数）
+  forbid_untyped_collections: true
+
+  # 所有 HAL 接口必须携带 @VintfStability 注解
+  require_vintf_stability: true
+
+  # 发布到设备的接口必须有版本号（major.minor）
+  require_versioning: true
+
+  # 已冻结接口的哈希必须与 current.txt 中的记录一致
+  # 任何修改都必须走 minor/major bump 流程
+  require_frozen_interface: true
+
+  # 禁止 @hide 注解（AIDL 接口天然 public，不应有隐藏 API）
+  forbid_hide_annotation: true
+
+  # 嵌套 parcelable 最大深度（VINTF 建议 ≤ 3）
+  max_parcelable_nesting: 3
+
+  # 禁止 List<T> 中 T 为 interface 类型（应使用 callback 模式）
+  forbid_interface_in_list: true
+
+  # 方法数量上限（单个接口方法过多意味着职责不清晰）
+  max_methods_per_interface: 50
+
+# ------------------------------------------------------------------
+# 命名规范
+# ------------------------------------------------------------------
+naming:
+  # 接口名：必须以 I 开头，PascalCase
+  # 示例：IFoo、IHardwareCamera
+  interface_pattern: '^I[A-Z][A-Za-z0-9]+$'
+
+  # Parcelable 名：PascalCase，无前缀
+  parcelable_pattern: '^[A-Z][A-Za-z0-9]+$'
+
+  # Enum 名：PascalCase
+  enum_pattern: '^[A-Z][A-Za-z0-9]+$'
+
+  # Enum 成员：UPPER_SNAKE_CASE
+  enum_member_pattern: '^[A-Z][A-Z0-9_]+$'
+
+  # 方法名：lowerCamelCase
+  method_pattern: '^[a-z][a-zA-Z0-9]+$'
+
+  # 字段名：lowerCamelCase
+  field_pattern: '^[a-z][a-zA-Z0-9_]*$'
+
+  # 包名：android.hardware.<name> 或 vendor.<name>
+  package_pattern: '^(android\.(hardware|hidl)|vendor\.[a-z][a-z0-9]*)\.[a-z.]+$'

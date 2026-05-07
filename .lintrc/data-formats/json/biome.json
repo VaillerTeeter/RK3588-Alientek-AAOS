@@ -1,0 +1,96 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
+
+  "_comment": [
+    "Biome — 现代 JSON linter + formatter（严格模式）",
+    "文档：https://biomejs.dev/reference/configuration/",
+    "用法：biome check --config-path .lintrc/data-formats/json/biome.json <files>",
+    "安装：npm install -D @biomejs/biome"
+  ],
+
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "master"
+  },
+
+  "files": {
+    "include": ["**/*.json", "**/*.jsonc"],
+    "ignore": [
+      ".git/**",
+      ".github/**",
+      "node_modules/**",
+      "build/**",
+      "dist/**",
+      "out/**",
+      "target/**",
+      "*.lock",
+      "Cargo.lock"
+    ],
+    "ignoreUnknown": false,
+    "maxSize": 1048576
+  },
+
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 120,
+    "attributePosition": "auto"
+  },
+
+  "json": {
+    "formatter": {
+      "enabled": true,
+      "indentStyle": "space",
+      "indentWidth": 2,
+      "lineEnding": "lf",
+      "lineWidth": 120,
+      "trailingCommas": "none"
+    },
+    "linter": {
+      "enabled": true
+    },
+    "parser": {
+      "allowComments": false,
+      "allowTrailingCommas": false
+    }
+  },
+
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+
+      "correctness": {
+        "all": true,
+        "noInvalidNewlineInString": "error",
+        "noUnusedVariables": "error"
+      },
+
+      "nursery": {
+        "all": true
+      },
+
+      "performance": {
+        "all": true
+      },
+
+      "style": {
+        "all": true
+      },
+
+      "suspicious": {
+        "all": true,
+        "noDuplicateObjectKeys": "error"
+      }
+    }
+  },
+
+  "organizeImports": {
+    "enabled": true
+  }
+}

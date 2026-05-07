@@ -21,16 +21,26 @@ severity = "HIGH"
 [allowlist]
 description = "Global allowlist"
 paths = [
+  # 本配置文件自身
   '''.gitleaks\.toml''',
-  '''(.*?)\.(jpg|gif|docx?|pdf|bin|svg|socket)$''',
-  '''(go\.sum|package-lock\.json|yarn\.lock|Cargo\.lock|composer\.lock)''',
+  # 二进制/媒体文件 — 内部不含文本凭证
+  # 额外覆盖嵌入式常见格式：img/dtb/dtbo/elf/so/o
+  '''(.*?)\.(jpg|gif|docx?|pdf|bin|svg|socket|img|dtb|dtbo|elf|a|so|o)$''',
+  # 许可证文件 — 可能包含看似密钥的版权地址字符串
+  '''(^|/)COPYING$''',
+  '''(^|/)LICENSE$''',
+  # RKBin 预编译固件 — 闭源二进制 blob，随机字节会触发假阳性
+  '''Android/rkbin/''',
+  # 预编译 GCC 工具链 — 第三方二进制，不含项目凭证
+  '''Android/prebuilts/''',
+  # 示例/模板环境文件 — 按定义不含真实凭证
   '''.env\.example''',
   '''.env\.sample''',
 ]
 regexes = [
-  # AWS example credentials from documentation
+  # AWS 文档示例凭证（非真实密钥）
   '''AKIAIOSFODNN7EXAMPLE''',
   '''wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY''',
-  # GitHub Actions secret references (not actual secrets)
+  # GitHub Actions secret 引用表达式（非实际值）
   '''\$\{\{\s*secrets\.[A-Z_]+\s*\}\}''',
 ]

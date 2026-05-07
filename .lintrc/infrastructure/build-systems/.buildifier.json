@@ -1,6 +1,7 @@
 {
   "type": "auto",
   "lint": {
+    "mode": "warn",
     "warnings": ["all"]
   }
 }

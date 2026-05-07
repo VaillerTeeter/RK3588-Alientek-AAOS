@@ -47,87 +47,106 @@ exclude = [
 # PT  = flake8-pytest-style
 # RET = flake8-return
 # RUF = Ruff-specific
-# PL  = pylint
-# TRY = tryceratops（异常处理）
-# FLY = flynt（f-string 现代化）
-# PERF= perflint（性能）
-# Q   = flake8-quotes
-# TCH = flake8-type-checking
-# TID = flake8-tidy-imports
-# G   = flake8-logging-format
-# PIE = flake8-pie
-# T20 = flake8-print
-# ARG = flake8-unused-arguments
-# DTZ = flake8-datetimez（时区安全）
-# A   = flake8-builtins
-# EM  = flake8-errmsg
-# LOG = flake8-logging
-# ERA = eradicate（注释掉的代码检测）
-# D   = pydocstyle（docstring 规范）
-# FURB= refurb（代码现代化）
+# A      = flake8-builtins
+# ANN    = flake8-annotations
+# ARG    = flake8-unused-arguments
+# ASYNC  = flake8-async
+# B      = flake8-bugbear
+# BLE    = flake8-blind-except
+# C4     = flake8-comprehensions
+# C90    = mccabe 圈复杂度
+# COM    = flake8-commas
+# D      = pydocstyle
+# DTZ    = flake8-datetimez
+# E      = pycodestyle errors
+# EM     = flake8-errmsg
+# ERA    = eradicate
+# EXE    = flake8-executable
+# F      = pyflakes
+# FA     = flake8-future-annotations
+# FBT    = flake8-boolean-trap
+# FIX    = flake8-fixme
+# FLY    = flynt
+# FURB   = refurb
+# G      = flake8-logging-format
+# I      = isort
+# ICN    = flake8-import-conventions
+# INP    = flake8-no-pep420
+# ISC    = flake8-implicit-str-concat
+# LOG    = flake8-logging
+# N      = pep8-naming
+# PERF   = perflint
+# PGH    = pygrep-hooks
+# PIE    = flake8-pie
+# PL     = pylint
+# PT     = flake8-pytest-style
+# PTH    = flake8-use-pathlib
+# Q      = flake8-quotes
+# RET    = flake8-return
+# RSE    = flake8-raise
+# RUF    = Ruff 特有规则
+# S      = flake8-bandit
+# SIM    = flake8-simplify
+# SLOT   = flake8-slots
+# T10    = flake8-debugger
+# T20    = flake8-print
+# TCH    = flake8-type-checking
+# TID    = flake8-tidy-imports
+# TRY    = tryceratops
+# UP     = pyupgrade
+# W      = pycodestyle warnings
+# YTT    = flake8-2020
 select = [
-  "E",
-  "W",
-  "F",
-  "I",
-  "N",
-  "UP",
-  "B",
-  "B9",
-  "C4",
-  "SIM",
+  "A",
   "ANN",
-  "S",
-  "PT",
-  "RET",
-  "RUF",
-  "PL",
-  "TRY",
+  "ARG",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C4",
+  "C90",
+  "COM",
+  "D",
+  "DTZ",
+  "E",
+  "EM",
+  "ERA",
+  "EXE",
+  "F",
+  "FA",
+  "FBT",
+  "FIX",
   "FLY",
+  "FURB",
+  "G",
+  "I",
+  "ICN",
+  "INP",
+  "ISC",
+  "LOG",
+  "N",
   "PERF",
+  "PGH",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
   "Q",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLOT",
+  "T10",
+  "T20",
   "TCH",
   "TID",
-  "G",
-  "PIE",
-  "T20",
-  "ARG",
-  "DTZ",
-  "A",
-  "EM",
-  "LOG",
-  "ERA",
-  "D",
-  "FURB",
+  "TRY",
+  "UP",
+  "W",
+  "YTT",
 ]
-
-ignore = [
-  # 允许在 __init__.py 中使用 * 导出
-  "F403",
-  # 允许 Any 类型在某些场景使用（接口边界处偶尔需要）
-  "ANN401",
-  # __init__ 方法无需声明 None 返回类型（冗余）
-  "ANN204",
-  # 允许 try/except/else 模式
-  "TRY300",
-  # Docstring: __init__ 方法 docstring 可省略（类级别 docstring 已足够）
-  "D107",
-]
-
-# 对测试文件放宽部分规则
-[lint.per-file-ignores]
-"tests/**/*.py" = [
-  "S101",    # 允许 assert
-  "S106",    # 允许硬编码密码（测试用）
-  "ANN",     # 测试不强制类型注解
-  "T20",     # 允许 print
-  "PLR2004", # 允许魔法数字
-  "ARG001",  # 允许未使用的参数（fixtures）
-  "D",       # 测试不强制 docstring
-  "ERA",     # 测试允许注释掉的调试代码
-]
-"conftest.py" = ["ANN", "S101", "D"]
-"**/__init__.py" = ["F401"] # 允许 __init__ 中的未使用导入
 
 # ============================================================
 # 规则细节
@@ -154,13 +173,13 @@ lines-after-imports = 2
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
 
 [lint.mccabe]
-max-complexity = 10
+max-complexity = 8
 
 [lint.pylint]
 max-args = 5
-max-branches = 10
-max-returns = 3
-max-statements = 40
+max-branches = 8
+max-returns = 2
+max-statements = 30
 
 [lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -169,7 +188,7 @@ ban-relative-imports = "all"
 strict = true
 
 [lint.flake8-errmsg]
-max-string-length = 30
+max-string-length = 20
 
 [lint.pydocstyle]
 # Google 风格：首行摘要、Args/Returns/Raises 段落

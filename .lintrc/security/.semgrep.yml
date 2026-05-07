@@ -1,313 +1,347 @@
-# Semgrep 安全扫描配置 — 极严格，覆盖 OWASP Top 10 2021
-# Run with: semgrep --config .lintrc/security/.semgrep.yml \
-#                   --config p/owasp-top-ten \
-#                   --config p/secrets \
-#                   --config p/security-audit \
-#                   --config p/r2c-security-audit \
-#                   --config p/jwt \
-#                   --config p/xss
+# Semgrep 安全扫描配置 — RK3588-Alientek-AAOS 项目（全量严格模式）
+# 目标语言：C / C++（内核驱动、U-Boot、HAL）、Bash（构建脚本）、
+#           Python（工具脚本）、Java（Android AAOS 组件）
+# 涵盖：OWASP Top 10 2021 + 嵌入式/Android 专项规则
+# 用法：
+#   semgrep --config .lintrc/security/.semgrep.yml \
+#           --config p/owasp-top-ten \
+#           --config p/c \
+#           --config p/java \
+#           --config p/python \
+#           --config p/security-audit \
+#           --config p/android
 
 ---
 rules:
   # ============================================================
-  # A01: Broken Access Control
+  # A02: Cryptographic Failures — 硬编码凭证
   # ============================================================
-  - id: no-hardcoded-admin-bypass
+  - id: c-hardcoded-credentials
     pattern-either:
-      - pattern: |
-          if $USER == "admin"
-            ...
-          end
-      - pattern: |
-          if $ROLE == "admin"
-            ...
-          end
-      - pattern: $EXPR if $USER == "admin"
-      - pattern: $EXPR if $ROLE == "admin"
-    message: "Hardcoded role check detected. Use RBAC/ABAC via authorization middleware."
-    languages: [ruby]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-284: Improper Access Control"
-      owasp: "A01:2021 - Broken Access Control"
-
-  - id: no-hardcoded-admin-bypass-py
-    pattern-either:
-      - pattern: 'if $USER == "admin":'
-      - pattern: 'if $ROLE == "admin":'
-    message: "Hardcoded role check detected. Use RBAC/ABAC via authorization middleware."
-    languages: [python]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-284: Improper Access Control"
-      owasp: "A01:2021 - Broken Access Control"
-
-  - id: no-hardcoded-admin-bypass-js
-    pattern-either:
-      - pattern: if ($USER == "admin")
-      - pattern: if ($ROLE == "admin")
-      - pattern: if ($USER === "admin")
-      - pattern: if ($ROLE === "admin")
-    message: "Hardcoded role check detected. Use RBAC/ABAC via authorization middleware."
-    languages: [javascript, typescript]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-284: Improper Access Control"
-      owasp: "A01:2021 - Broken Access Control"
-
-  - id: no-hardcoded-admin-bypass-go
-    pattern-either:
-      - pattern: 'if $USER == "admin" { ... }'
-      - pattern: 'if $ROLE == "admin" { ... }'
-    message: "Hardcoded role check detected. Use RBAC/ABAC via authorization middleware."
-    languages: [go]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-284: Improper Access Control"
-      owasp: "A01:2021 - Broken Access Control"
-
-  - id: no-hardcoded-admin-bypass-java
-    pattern-either:
-      - pattern: 'if ($USER.equals("admin")) { ... }'
-      - pattern: 'if ($ROLE.equals("admin")) { ... }'
-      - pattern: 'if ("admin".equals($USER)) { ... }'
-      - pattern: 'if ($USER == "admin") { ... }'
-      - pattern: 'if ($ROLE == "admin") { ... }'
-    message: "Hardcoded role check detected. Use RBAC/ABAC via authorization middleware."
-    languages: [java]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-284: Improper Access Control"
-      owasp: "A01:2021 - Broken Access Control"
-
-  - id: path-traversal
-    pattern-either:
-      - pattern: open($BASE + $USER_INPUT)
-      - pattern: open($BASE + "/" + $USER_INPUT)
-      - pattern: File($BASE + $USER_INPUT)
-    message: "Possible path traversal. Sanitize and validate file paths with allowlists."
-    languages: [python, java, javascript, typescript]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-22: Path Traversal"
-      owasp: "A01:2021 - Broken Access Control"
-
-  # ============================================================
-  # A02: Cryptographic Failures
-  # ============================================================
-  - id: no-hardcoded-password
-    pattern-either:
-      - pattern: password = "..."
-      - pattern: passwd = "..."
-      - pattern: pwd = "..."
-      - pattern: PASSWORD = "..."
-    message: "Hardcoded password detected. Use environment variables or secrets manager."
-    languages: [python, javascript, typescript, go, java, ruby]
+      - pattern: char *password = "...";
+      - pattern: char *passwd = "...";
+      - pattern: char *secret = "...";
+      - pattern: char *api_key = "...";
+      - pattern: 'char password[] = "...";'
+      - pattern: '#define PASSWORD "..."'
+      - pattern: '#define SECRET_KEY "..."'
+    message: "Hardcoded credential in C/C++ code. Use environment config or Android Keystore."
+    languages: [c, cpp]
     severity: ERROR
     metadata:
       cwe: "CWE-798: Use of Hard-coded Credentials"
       owasp: "A02:2021 - Cryptographic Failures"
 
-  - id: no-hardcoded-secret
+  - id: python-hardcoded-credentials
     pattern-either:
+      - pattern: password = "..."
+      - pattern: passwd = "..."
       - pattern: secret = "..."
       - pattern: api_key = "..."
       - pattern: access_token = "..."
       - pattern: private_key = "..."
+      - pattern: PASSWORD = "..."
       - pattern: SECRET_KEY = "..."
-    message: "Hardcoded secret detected. Use environment variables or secrets manager."
-    languages: [python, javascript, typescript, go, java, ruby]
+    message: "Hardcoded credential. Use environment variables or a secrets manager."
+    languages: [python]
     severity: ERROR
     metadata:
       cwe: "CWE-798: Use of Hard-coded Credentials"
       owasp: "A02:2021 - Cryptographic Failures"
 
-  - id: weak-hash-algorithm
+  - id: java-hardcoded-credentials
+    pattern-either:
+      - pattern: String password = "...";
+      - pattern: String passwd = "...";
+      - pattern: String secret = "...";
+      - pattern: String apiKey = "...";
+      - pattern: String accessToken = "...";
+      - pattern: String privateKey = "...";
+      - pattern: private static final String PASSWORD = "...";
+      - pattern: private static final String SECRET = "...";
+    message: "Hardcoded credential in Java code. Use Android Keystore or system properties."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      owasp: "A02:2021 - Cryptographic Failures"
+
+  # ============================================================
+  # A02: Cryptographic Failures — 弱算法
+  # ============================================================
+  - id: python-weak-hash
     pattern-either:
       - pattern: hashlib.md5(...)
       - pattern: hashlib.sha1(...)
-      - pattern: MessageDigest.getInstance("MD5")
-      - pattern: MessageDigest.getInstance("SHA-1")
-    message: "Weak hash algorithm detected. Use SHA-256 or stronger for security purposes."
-    languages: [python, java]
+    message: "MD5/SHA-1 are cryptographically broken. Use hashlib.sha256() or stronger."
+    languages: [python]
     severity: ERROR
     metadata:
       cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
       owasp: "A02:2021 - Cryptographic Failures"
 
-  - id: insecure-random
+  - id: java-weak-message-digest
     pattern-either:
-      - pattern: random.random()
-      - pattern: random.randint(...)
-      - pattern: random.choice(...)
-      - pattern: random.shuffle(...)
-      - pattern: random.sample(...)
-      - pattern: Math.random()
-      - pattern: new Random()
-    message: "Use cryptographically secure random generators (secrets/crypto.getRandomValues/SecureRandom)."
-    languages: [python, javascript, typescript, java]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator"
-      owasp: "A02:2021 - Cryptographic Failures"
-
-  - id: hardcoded-iv
-    pattern-either:
-      - pattern: iv = b"..."
-      - pattern: IV = "..."
-    message: "Hardcoded IV/nonce detected. Generate a random IV for each encryption operation."
-    languages: [python]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-330: Use of Insufficiently Random Values"
-      owasp: "A02:2021 - Cryptographic Failures"
-
-  - id: hardcoded-iv-js
-    pattern-either:
-      - pattern: var iv = "..."
-      - pattern: const iv = "..."
-      - pattern: let iv = "..."
-      - pattern: var IV = "..."
-      - pattern: const IV = "..."
-    message: "Hardcoded IV/nonce detected. Generate a random IV for each encryption operation."
-    languages: [javascript, typescript]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-330: Use of Insufficiently Random Values"
-      owasp: "A02:2021 - Cryptographic Failures"
-
-  - id: hardcoded-iv-java
-    pattern: 'new IvParameterSpec("...".getBytes())'
-    message: "Hardcoded IV/nonce detected. Generate a random IV for each encryption operation."
+      - pattern: MessageDigest.getInstance("MD5")
+      - pattern: MessageDigest.getInstance("SHA-1")
+      - pattern: MessageDigest.getInstance("SHA1")
+    message: "MD5/SHA-1 are cryptographically broken. Use SHA-256 or stronger."
     languages: [java]
     severity: ERROR
     metadata:
-      cwe: "CWE-330: Use of Insufficiently Random Values"
+      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+      owasp: "A02:2021 - Cryptographic Failures"
+
+  - id: bash-tls-verification-disabled
+    pattern-either:
+      - pattern: curl -k $URL
+      - pattern: curl --insecure $URL
+      - pattern: curl ... -k ...
+      - pattern: curl ... --insecure ...
+    message: "curl -k/--insecure disables TLS certificate verification. Remove in production."
+    languages: [bash]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-295: Improper Certificate Validation"
+      owasp: "A02:2021 - Cryptographic Failures"
+
+  - id: bash-wget-no-check-certificate
+    pattern: wget --no-check-certificate $URL
+    message: "wget --no-check-certificate disables TLS validation. Remove in production."
+    languages: [bash]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-295: Improper Certificate Validation"
       owasp: "A02:2021 - Cryptographic Failures"
 
   # ============================================================
-  # A03: Injection
+  # A03: Injection — C/C++ 禁用函数（缓冲区溢出）
   # ============================================================
-  - id: no-sql-string-concat
-    pattern-either:
-      - pattern: $QUERY = "SELECT" + $USER_INPUT
-      - pattern: $QUERY = "INSERT" + $USER_INPUT
-      - pattern: $QUERY = "UPDATE" + $USER_INPUT
-      - pattern: $QUERY = "DELETE" + $USER_INPUT
-    message: "Possible SQL injection via string concatenation. Use parameterized queries."
-    languages: [python, javascript, typescript, java, ruby]
+  - id: c-use-of-gets
+    pattern: gets($BUF)
+    message: "gets() has no bounds checking and is unconditionally unsafe. Use fgets(buf, sizeof(buf), stdin)."
+    languages: [c, cpp]
     severity: ERROR
     metadata:
-      cwe: "CWE-89: SQL Injection"
+      cwe: "CWE-120: Buffer Copy without Checking Size of Input"
       owasp: "A03:2021 - Injection"
 
-  - id: no-sql-fstring-injection
-    pattern-either:
-      - pattern: '$QUERY = f"SELECT ... {$USER_INPUT} ..."'
-      - pattern: '$QUERY = f"INSERT ... {$USER_INPUT} ..."'
-      - pattern: '$QUERY = f"UPDATE ... {$USER_INPUT} ..."'
-      - pattern: '$QUERY = f"DELETE ... {$USER_INPUT} ..."'
-    message: "Possible SQL injection via f-string interpolation. Use parameterized queries."
-    languages: [python]
+  - id: c-use-of-strcpy
+    pattern: strcpy($DST, $SRC)
+    message: "strcpy() has no bounds checking. Use strlcpy() or strncpy() with an explicit size limit."
+    languages: [c, cpp]
     severity: ERROR
     metadata:
-      cwe: "CWE-89: SQL Injection"
+      cwe: "CWE-120: Buffer Copy without Checking Size of Input"
       owasp: "A03:2021 - Injection"
 
-  - id: no-os-command-injection
+  - id: c-use-of-strcat
+    pattern: strcat($DST, $SRC)
+    message: "strcat() has no bounds checking. Use strlcat() or strncat() with an explicit size limit."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-120: Buffer Copy without Checking Size of Input"
+      owasp: "A03:2021 - Injection"
+
+  - id: c-use-of-sprintf
+    pattern: sprintf($BUF, $FMT, ...)
+    message: "sprintf() has no bounds checking. Use snprintf(buf, sizeof(buf), fmt, ...) instead."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-120: Buffer Copy without Checking Size of Input"
+      owasp: "A03:2021 - Injection"
+
+  - id: c-use-of-vsprintf
+    pattern: vsprintf($BUF, $FMT, $ARGS)
+    message: "vsprintf() has no bounds checking. Use vsnprintf(buf, sizeof(buf), fmt, args) instead."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-120: Buffer Copy without Checking Size of Input"
+      owasp: "A03:2021 - Injection"
+
+  - id: c-unsafe-scanf-no-width
     pattern-either:
-      - pattern: os.system($USER_INPUT)
-      - pattern: subprocess.call($USER_INPUT, shell=True)
-      - pattern: subprocess.run($USER_INPUT, shell=True)
-      - pattern: exec($USER_INPUT)
-      - pattern: Runtime.getRuntime().exec($USER_INPUT)
-    message: "Possible OS command injection. Avoid shell=True and validate all user input."
-    languages: [python, java, javascript, typescript]
+      - pattern: scanf("%s", $BUF)
+      - pattern: sscanf($SRC, "%s", $BUF)
+      - pattern: fscanf($FP, "%s", $BUF)
+    message: "scanf/sscanf/fscanf with bare %s has no width limit. Specify a maximum, e.g., %255s."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-120: Buffer Copy without Checking Size of Input"
+      owasp: "A03:2021 - Injection"
+
+  # ============================================================
+  # A03: Injection — C/C++ 格式字符串漏洞
+  # ============================================================
+  - id: c-format-string-variable
+    pattern-either:
+      - pattern: printf($FMT)
+      - pattern: fprintf($FD, $FMT)
+      - pattern: syslog($PRI, $FMT)
+      - pattern: printk($FMT)
+    message: "User-controlled format string. Always pass a literal format, e.g., printf(\"%s\", input)."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-134: Use of Externally-Controlled Format String"
+      owasp: "A03:2021 - Injection"
+
+  # ============================================================
+  # A03: Injection — C/C++ 命令注入
+  # ============================================================
+  - id: c-system-variable-argument
+    pattern: system($CMD)
+    message: "system() with a non-literal argument enables command injection. Use execve() with a validated argument array."
+    languages: [c, cpp]
     severity: ERROR
     metadata:
       cwe: "CWE-78: OS Command Injection"
       owasp: "A03:2021 - Injection"
 
-  - id: no-eval-user-input
-    pattern: eval($X)
-    message: "Avoid eval() with potentially user-controlled input."
-    languages: [javascript, typescript, python]
+  - id: c-popen-variable-argument
+    pattern: popen($CMD, $MODE)
+    message: "popen() with a variable command enables command injection. Validate and sanitize all arguments."
+    languages: [c, cpp]
     severity: ERROR
     metadata:
-      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
-      owasp: "A03:2021 - Injection"
-
-  - id: no-ldap-injection
-    pattern: ldap.search($BASE, $FILTER + $USER_INPUT)
-    message: "Possible LDAP injection. Use LDAP-safe escaping for user input."
-    languages: [python, java]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-90: LDAP Injection"
+      cwe: "CWE-78: OS Command Injection"
       owasp: "A03:2021 - Injection"
 
   # ============================================================
-  # A05: Security Misconfiguration
+  # A03: Injection — Python 命令注入
   # ============================================================
-  - id: debug-mode-enabled
+  - id: python-subprocess-shell-true
     pattern-either:
-      - pattern: DEBUG = True
-      - pattern: debug=True
-      - pattern: app.run(debug=True)
-    message: "Debug mode must be disabled in production environments."
-    languages: [python, javascript, typescript]
+      - pattern: subprocess.run($CMD, ..., shell=True, ...)
+      - pattern: subprocess.call($CMD, ..., shell=True, ...)
+      - pattern: subprocess.Popen($CMD, ..., shell=True, ...)
+      - pattern: subprocess.check_output($CMD, ..., shell=True, ...)
+    message: "subprocess with shell=True and a variable argument enables command injection. Pass a list of arguments instead."
+    languages: [python]
     severity: ERROR
     metadata:
-      cwe: "CWE-489: Active Debug Code"
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 - Injection"
+
+  - id: python-os-system-variable
+    pattern: os.system($CMD)
+    message: "os.system() with a variable command enables command injection. Use subprocess with an argument list."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 - Injection"
+
+  # ============================================================
+  # A03: Injection — Bash 命令注入
+  # ============================================================
+  - id: bash-eval-with-variable
+    pattern-either:
+      - pattern: eval "$VAR"
+      - pattern: eval "$@"
+      - pattern: eval "$*"
+    message: "eval with a variable/external input enables command injection. Avoid eval or validate input strictly."
+    languages: [bash]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 - Injection"
+
+  # ============================================================
+  # A03: Injection — Java SQL 注入（Android SQLite）
+  # ============================================================
+  - id: java-sql-injection-concat
+    pattern-either:
+      - pattern: $DB.rawQuery($QUERY + $INPUT, ...)
+      - pattern: $DB.execSQL($QUERY + $INPUT)
+      - pattern: $STMT = "SELECT" + $INPUT
+      - pattern: $STMT = "INSERT" + $INPUT
+      - pattern: $STMT = "UPDATE" + $INPUT
+      - pattern: $STMT = "DELETE" + $INPUT
+    message: "SQL injection via string concatenation. Use parameterized queries (selectionArgs[]) instead."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 - Injection"
+
+  # ============================================================
+  # A04: Insecure Design — C/C++ 整数溢出
+  # ============================================================
+  - id: c-integer-overflow-in-alloc
+    pattern-either:
+      - pattern: malloc($A * $B)
+      - pattern: kmalloc($A * $B, $FLAGS)
+      - pattern: kzalloc($A * $B, $FLAGS)
+      - pattern: vmalloc($A * $B)
+    message: "Potential integer overflow in allocation size. Validate operands or use struct_size()/array_size() helpers."
+    languages: [c, cpp]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-190: Integer Overflow or Wraparound"
+      owasp: "A04:2021 - Insecure Design"
+
+  # ============================================================
+  # A04: Insecure Design — 路径遍历
+  # ============================================================
+  - id: python-path-traversal
+    pattern-either:
+      - pattern: open(os.path.join($BASE, $USER_INPUT))
+      - pattern: open($BASE + $USER_INPUT)
+      - pattern: open($BASE + "/" + $USER_INPUT)
+    message: "Possible path traversal. Canonicalize the path and validate it against an allowlist."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-22: Path Traversal"
+      owasp: "A04:2021 - Insecure Design"
+
+  # ============================================================
+  # A05: Security Misconfiguration — Android
+  # ============================================================
+  - id: android-world-readable-file
+    pattern-either:
+      - pattern: openFileOutput($NAME, Context.MODE_WORLD_READABLE)
+      - pattern: openFileOutput($NAME, 1)
+    message: "MODE_WORLD_READABLE exposes app files to all other apps. Use MODE_PRIVATE."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-732: Incorrect Permission Assignment for Critical Resource"
       owasp: "A05:2021 - Security Misconfiguration"
 
-  - id: insecure-cors-wildcard
+  - id: android-world-writable-file
     pattern-either:
-      - pattern: Access-Control-Allow-Origin = "*"
-      - pattern: 'cors({ origin: "*" })'
-      - pattern: CORS(app, origins="*")
-    message: "Wildcard CORS policy exposes APIs to any origin. Specify allowed origins explicitly."
-    languages: [python, javascript, typescript]
+      - pattern: openFileOutput($NAME, Context.MODE_WORLD_WRITEABLE)
+      - pattern: openFileOutput($NAME, 2)
+    message: "MODE_WORLD_WRITEABLE allows any app to overwrite this file. Use MODE_PRIVATE."
+    languages: [java]
     severity: ERROR
     metadata:
-      cwe: "CWE-942: Permissive Cross-domain Policy"
+      cwe: "CWE-732: Incorrect Permission Assignment for Critical Resource"
       owasp: "A05:2021 - Security Misconfiguration"
 
   # ============================================================
-  # A07: Identification and Authentication Failures
+  # A08: Software and Data Integrity Failures — 不安全反序列化
   # ============================================================
-  - id: insecure-cookie-no-secure-flag
+  - id: python-pickle-loads-untrusted
     pattern-either:
-      - pattern: response.set_cookie($NAME, $VAL)
-      - pattern: res.cookie($NAME, $VAL)
-    message: "Cookie missing Secure, HttpOnly, and SameSite flags. Set all three for sensitive cookies."
-    languages: [python, javascript, typescript]
+      - pattern: pickle.loads($DATA)
+      - pattern: pickle.load($FILE)
+    message: "pickle.loads/load() with untrusted data enables arbitrary code execution. Use JSON or a safe format."
+    languages: [python]
     severity: ERROR
     metadata:
-      cwe: "CWE-614: Sensitive Cookie Without 'Secure' Attribute"
-      owasp: "A07:2021 - Identification and Authentication Failures"
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      owasp: "A08:2021 - Software and Data Integrity Failures"
 
-  - id: weak-jwt-algorithm
-    pattern-either:
-      - pattern: jwt.encode($PAYLOAD, $SECRET, algorithm="HS256")
-      - pattern: jwt.encode($PAYLOAD, $SECRET, algorithm="HS384")
-      - pattern: jwt.encode($PAYLOAD, $SECRET, algorithm="HS512")
-      - pattern: jwt.encode($PAYLOAD, $SECRET, algorithm="none")
-    message: "Weak or insecure JWT algorithm. Use RS256/ES256 (asymmetric) instead of symmetric HMAC or 'none'."
-    languages: [python, javascript, typescript]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
-      owasp: "A07:2021 - Identification and Authentication Failures"
-
-  # ============================================================
-  # A08: Software and Data Integrity Failures
-  # ============================================================
-  - id: no-unsafe-deserialization-pickle
-    pattern-either:
-      - pattern: pickle.loads($USER_INPUT)
-      - pattern: yaml.load($USER_INPUT)
-    message: "Unsafe deserialization. Use yaml.safe_load() and avoid pickle with untrusted data."
+  - id: python-yaml-load-unsafe
+    pattern: yaml.load($DATA)
+    message: "yaml.load() without an explicit Loader is unsafe. Use yaml.safe_load() instead."
     languages: [python]
     severity: ERROR
     metadata:
@@ -315,98 +349,59 @@ rules:
       owasp: "A08:2021 - Software and Data Integrity Failures"
 
   # ============================================================
-  # A09: Security Logging and Monitoring Failures
+  # A09: Security Logging — 凭证泄露到日志
   # ============================================================
-  - id: no-password-in-log
+  - id: android-log-sensitive-data
     pattern-either:
-      - pattern: logger.info("... password ...")
-      - pattern: log.info("... password ...")
-      - pattern: console.log("... password ...")
-      - pattern: System.out.println("... password ...")
-    message: "Possible credential exposure in logs. Never log passwords, tokens, or secrets."
-    languages: [python, javascript, typescript, java]
+      - pattern: Log.d($TAG, "... password ...")
+      - pattern: Log.d($TAG, "... token ...")
+      - pattern: Log.d($TAG, "... secret ...")
+      - pattern: Log.i($TAG, "... password ...")
+      - pattern: Log.i($TAG, "... token ...")
+      - pattern: Log.e($TAG, "... password ...")
+      - pattern: Log.v($TAG, "... password ...")
+      - pattern: Log.w($TAG, "... password ...")
+    message: "Possible credential exposure in Android log. Never log passwords, tokens, or secrets."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+
+  - id: python-log-sensitive-data
+    pattern-either:
+      - pattern: logging.info("... password ...")
+      - pattern: logging.debug("... password ...")
+      - pattern: logging.warning("... token ...")
+      - pattern: print("... password ...")
+      - pattern: print("... secret ...")
+    message: "Possible credential exposure in Python log/print. Never log passwords, tokens, or secrets."
+    languages: [python]
     severity: ERROR
     metadata:
       cwe: "CWE-532: Insertion of Sensitive Information into Log File"
       owasp: "A09:2021 - Security Logging and Monitoring Failures"
 
   # ============================================================
-  # A10: Server-Side Request Forgery (SSRF)
+  # A01: Broken Access Control — Android WebView
   # ============================================================
-  - id: ssrf-user-controlled-url
-    pattern-either:
-      - pattern: requests.get($USER_INPUT)
-      - pattern: requests.post($USER_INPUT)
-      - pattern: urllib.request.urlopen($USER_INPUT)
-      - pattern: fetch($USER_INPUT)
-      - pattern: axios.get($USER_INPUT)
-    message: "Possible SSRF. Validate and allowlist URLs before making outbound HTTP requests."
-    languages: [python, javascript, typescript]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-918: Server-Side Request Forgery"
-      owasp: "A10:2021 - Server-Side Request Forgery"
-
-  # ============================================================
-  # A03: Injection — XML External Entity (XXE)
-  # ============================================================
-  - id: xml-external-entity-xxe
-    pattern-either:
-      - pattern: lxml.etree.parse($INPUT)
-      - pattern: lxml.etree.fromstring($INPUT)
-      - pattern: xml.etree.ElementTree.parse($INPUT)
-      - pattern: xml.etree.ElementTree.fromstring($INPUT)
-      - pattern: xml.sax.parse($INPUT, ...)
-      - pattern: xml.dom.minidom.parse($INPUT)
-    message: "Potential XXE vulnerability. Use defusedxml library or configure parsers to disable external entities."
-    languages: [python]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-611: Improper Restriction of XML External Entity Reference"
-      owasp: "A03:2021 - Injection"
-
-  # ============================================================
-  # A04: Insecure Design
-  # ============================================================
-  - id: unrestricted-file-upload
-    pattern: $FILE.save(os.path.join($DIR, $FILENAME))
-    message: "Potential unrestricted file upload. Validate file type/extension and sanitize filename before saving."
-    languages: [python]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-434: Unrestricted Upload of File with Dangerous Type"
-      owasp: "A04:2021 - Insecure Design"
-
-  - id: mass-assignment-vulnerability
-    pattern-either:
-      - pattern: $MODEL(**request.json())
-      - pattern: $MODEL(**request.form)
-      - pattern: $MODEL(**$REQUEST.data)
-    message: >-
-      Potential mass assignment. Explicitly allowlist fields instead of
-      passing raw request data to model constructors.
-    languages: [python]
-    severity: ERROR
-    metadata:
-      cwe: "CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes"
-      owasp: "A04:2021 - Insecure Design"
-
-  # ============================================================
-  # A03: Injection — XML External Entity (XXE) — Java
-  # ============================================================
-  - id: xml-external-entity-xxe-java
-    pattern-either:
-      - pattern: |
-          DocumentBuilderFactory $F = DocumentBuilderFactory.newInstance();
-          ...
-          $F.newDocumentBuilder().parse($INPUT);
-      - pattern: SAXParserFactory.newInstance().newSAXParser().parse($INPUT, ...)
-      - pattern: XMLInputFactory.newInstance().createXMLStreamReader($INPUT)
-    message: >-
-      Potential XXE in Java XML parser. Disable external entities:
-      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true).
+  - id: android-webview-javascript-enabled
+    pattern: $WEB.getSettings().setJavaScriptEnabled(true)
+    message: "JavaScript enabled in WebView. Ensure content is trusted and set a strict WebViewClient."
     languages: [java]
     severity: ERROR
     metadata:
-      cwe: "CWE-611: Improper Restriction of XML External Entity Reference"
-      owasp: "A03:2021 - Injection"
+      cwe: "CWE-79: Cross-site Scripting"
+      owasp: "A01:2021 - Broken Access Control"
+
+  - id: android-webview-file-access
+    pattern-either:
+      - pattern: $WEB.getSettings().setAllowFileAccess(true)
+      - pattern: $WEB.getSettings().setAllowFileAccessFromFileURLs(true)
+      - pattern: $WEB.getSettings().setAllowUniversalAccessFromFileURLs(true)
+    message: "WebView file access grants web content access to the local filesystem. Disable unless strictly necessary."
+    languages: [java]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"
+      owasp: "A01:2021 - Broken Access Control"

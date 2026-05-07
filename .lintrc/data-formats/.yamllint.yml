@@ -1,5 +1,5 @@
 ---
-# yamllint 配置 — 极严格模式
+# yamllint 配置 — 全量极严格模式（无任何禁用规则）
 # 文档：https://yamllint.readthedocs.io/en/stable/rules.html
 # 用法：yamllint -c .lintrc/data-formats/.yamllint.yml .
 
@@ -10,10 +10,10 @@ rules:
   # 行与文档结构
   # ============================================================
   line-length:
-    max: 120
+    max: 80
     level: error
     allow-non-breakable-words: true
-    allow-non-breakable-inline-mappings: true
+    allow-non-breakable-inline-mappings: false
 
   document-start:
     present: true
@@ -35,7 +35,7 @@ rules:
   indentation:
     spaces: 2
     indent-sequences: true
-    check-multi-line-strings: false
+    check-multi-line-strings: true
     level: error
 
   # ============================================================
@@ -45,7 +45,7 @@ rules:
     level: error
 
   empty-lines:
-    max: 2
+    max: 1
     max-start: 0
     max-end: 0
     level: error
@@ -85,7 +85,7 @@ rules:
 
   braces:
     min-spaces-inside: 0
-    max-spaces-inside: 1
+    max-spaces-inside: 0
     min-spaces-inside-empty: 0
     max-spaces-inside-empty: 0
     level: error
@@ -104,7 +104,14 @@ rules:
   # ============================================================
   # 引号与字符串
   # ============================================================
-  quoted-strings: disable
+  quoted-strings:
+    # 仅在必须引号时才使用引号（避免不必要的引号污染）
+    quote-type: double
+    required: only-when-needed
+    extra-required: []
+    extra-allowed: []
+    allow-quoted-quotes-without-separator: false
+    level: error
 
   # ============================================================
   # 键
@@ -113,19 +120,17 @@ rules:
     forbid-duplicated-merge-keys: true
     level: error
 
-  key-ordering: disable
+  key-ordering:
+    level: error
 
   # ============================================================
   # 真值规范化
   # ============================================================
   truthy:
+    # 只允许 YAML 1.2 标准布尔值，禁止 yes/no/on/off（YAML 1.1 遗留）
     allowed-values:
       - "true"
       - "false"
-      - "yes"
-      - "no"
-      - "on"
-      - "off"
     check-keys: true
     level: error
 
@@ -134,5 +139,29 @@ rules:
   # ============================================================
   octal-values:
     forbid-implicit-octal: true
-    forbid-explicit-octal: false
+    forbid-explicit-octal: true
+    level: error
+
+  # ============================================================
+  # 浮点数规范化
+  # ============================================================
+  float-values:
+    # 禁止 .inf / -.inf（隐式无穷大，可移植性差）
+    forbid-inf: true
+    # 禁止 .nan（非数字值，可移植性差）
+    forbid-nan: true
+    # 禁止科学计数法（1.5e3 等，避免歧义）
+    forbid-scientific-notation: true
+    level: error
+
+  # ============================================================
+  # 锚点与别名
+  # ============================================================
+  anchors:
+    # 禁止引用未声明的锚点
+    forbid-undeclared-aliases: true
+    # 禁止重复的锚点名称
+    forbid-duplicated-anchors: true
+    # 禁止声明但从未使用的锚点
+    forbid-unused-anchors: true
     level: error

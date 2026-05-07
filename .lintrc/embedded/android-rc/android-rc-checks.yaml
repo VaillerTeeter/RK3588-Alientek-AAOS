@@ -1,0 +1,178 @@
+---
+# Android Init RC 文件 Lint 配置 — RK3588-Alientek-AAOS 项目（全量严格模式）
+# 工具：Android init 解析器（system/core/init）+ 自定义 CI 检查脚本
+# 文档：https://android.googlesource.com/platform/system/core/+/main/init/README.md
+#       https://source.android.com/docs/core/architecture/bootloader/partitions/android-init
+#
+# 注意：Android init 本身是最终的解析权威，但不对外暴露独立 lint 工具。
+#       本文件作为 CI 检查脚本的权威配置。CI 脚本应根据此文件中的规则
+#       对 .rc 文件进行静态扫描和模式匹配检查。
+#
+# 用法（CI）：
+#   # 方法一：在 Android build 环境中使用 init 内建检查：
+#   out/host/linux-x86/bin/init --check-configuration <file.rc>
+#
+#   # 方法二：使用 aconfigd（Android 13+）检查 aconfig flags：
+#   aconfigd validate <file.rc>
+#
+#   # 方法三：自定义 Python 检查脚本（读取本文件）：
+#   python3 tools/ci/check_android_rc.py \
+#     --config .lintrc/embedded/android-rc/android-rc-checks.yaml \
+#     <file.rc>
+
+# ------------------------------------------------------------------
+# 服务安全策略
+# ------------------------------------------------------------------
+service:
+  # 所有 service 块必须显式声明 user（禁止默认继承 root）
+  require_user: true
+
+  # 所有 service 块必须显式声明 group
+  require_group: true
+
+  # 所有 service 块必须声明 class（core / main / hal / late_start 等）
+  require_class: true
+
+  # 禁止 service 以 root 用户运行（除内核辅助进程外）
+  # 例外需在 .rc 文件同行添加 # SECURITY: <reason> 注释
+  forbidden_users:
+    - root
+    - shell
+
+  # 以下用户运行的 service 必须附带安全说明注释
+  require_comment_for_privileged_users:
+    - system
+    - radio
+    - bluetooth
+    - wifi
+
+  # 所有 service 必须显式声明 SELinux 标签（seclabel）
+  # 或通过 file_contexts / seapp_contexts 隐式关联（后者需在注释中说明）
+  require_seclabel_or_comment: true
+
+  # 禁止使用 disabled 关键字后不通过 ctl.start 激活
+  # （会造成 service 永远不启动的死配置）
+  warn_disabled_without_start: true
+
+  # oneshot service 必须使用 critical 或 reboot_on_failure 防止无限重启
+  # 注意：oneshot 不重启，此规则针对非 oneshot 的 critical service
+  require_critical_annotation_for_essential_services: true
+
+# ------------------------------------------------------------------
+# 能力（Capability）策略
+# ------------------------------------------------------------------
+capabilities:
+  # 所有 capability 声明必须附带安全说明注释
+  require_comment_for_any_capability: true
+
+  # 以下能力属于高风险，须额外审查（CI 打印警告并要求人工确认）
+  high_risk_capabilities:
+    - CAP_SYS_ADMIN      # 系统管理（极度宽泛）
+    - CAP_NET_ADMIN      # 网络配置
+    - CAP_NET_RAW        # 原始套接字（可嗅探流量）
+    - CAP_DAC_OVERRIDE   # 绕过 DAC 权限检查
+    - CAP_DAC_READ_SEARCH # 绕过目录读取权限
+    - CAP_SYS_PTRACE     # 调试其他进程（可读取内存）
+    - CAP_SETUID         # 切换 UID
+    - CAP_SETGID         # 切换 GID
+    - CAP_SYS_MODULE     # 加载内核模块
+
+  # 禁止在生产 .rc 文件中声明以下能力（无论任何理由）
+  forbidden_capabilities:
+    - CAP_SYS_RAWIO      # 直接硬件 I/O
+    - CAP_MKNOD          # 创建设备文件
+    - CAP_SYS_BOOT       # 系统重启（由 init 自身管理）
+
+# ------------------------------------------------------------------
+# 文件系统操作安全策略
+# ------------------------------------------------------------------
+filesystem:
+  # 禁止 chmod 产生 world-writable 结果（mode & 0o002 != 0）
+  forbid_world_writable_chmod: true
+
+  # 禁止 chmod 777 / 0777
+  forbid_chmod_777: true
+
+  # 禁止对以下敏感路径执行 world-readable chmod
+  forbid_world_readable_on_paths:
+    - /data/
+    - /system/etc/
+    - /vendor/etc/
+    - /proc/
+    - /sys/
+
+  # chown / chgrp 操作必须在 chmod 之前执行（防止权限窗口）
+  require_chown_before_chmod: true
+
+  # 禁止在 on early-init / on init 阶段 mount 可写分区
+  # （应在 on fs / on post-fs 阶段进行）
+  warn_early_writable_mount: true
+
+  # 所有 mount 必须包含 nosuid nodev 选项（数据分区）
+  require_nosuid_nodev_for_data_mounts: true
+
+# ------------------------------------------------------------------
+# 属性（Property）安全策略
+# ------------------------------------------------------------------
+properties:
+  # 禁止在 .rc 文件中直接 setprop 以下安全敏感属性
+  # （应通过 property_contexts 控制访问权限）
+  forbidden_setprop:
+    - ro.debuggable       # 控制调试模式（生产必须为 0）
+    - ro.adb.secure       # 控制 ADB 安全（生产必须为 1）
+    - ro.secure           # 控制安全模式
+    - service.adb.root    # 控制 ADB root 访问
+    - persist.sys.usb.config # USB 调试配置
+
+  # 以下属性修改需附带安全说明注释
+  warn_on_setprop:
+    - ro.build.type
+    - ro.product.model
+    - ro.serialno
+
+# ------------------------------------------------------------------
+# 触发器（Trigger）策略
+# ------------------------------------------------------------------
+triggers:
+  # 禁止在 on property: 触发器中使用通配符属性值匹配
+  # 例：on property:sys.boot_completed=* （容易被误触发）
+  forbid_wildcard_property_trigger: true
+
+  # on property: 触发器必须引用已在 property_contexts 中声明的属性
+  require_defined_property: true
+
+  # 禁止在 on charger / on ffbm-* 等非标准触发器中启动关键安全服务
+  warn_critical_service_in_nonstandard_trigger: true
+
+# ------------------------------------------------------------------
+# 已废弃关键字
+# ------------------------------------------------------------------
+deprecated:
+  # 以下关键字在 Android 12+ 已废弃，禁止使用
+  forbidden_keywords:
+    - loglevel           # 已废弃，使用 android:logcat
+    - setcon             # 已废弃，使用 seclabel
+    - exec               # 已废弃，使用 exec_start 或 oneshot service
+
+  # 以下关键字已废弃但仍可用，须附带迁移说明注释
+  warn_deprecated_keywords:
+    - import             # 优先使用 ${ro.hardware} 变量而非条件 import
+
+# ------------------------------------------------------------------
+# 代码风格
+# ------------------------------------------------------------------
+style:
+  # 最大行宽
+  max_line_length: 120
+
+  # 缩进：4 空格（Android .rc 文件惯例）
+  indent_size: 4
+
+  # 禁止制表符
+  forbid_tabs: true
+
+  # service / on 块之间必须有空行分隔
+  require_blank_line_between_blocks: true
+
+  # 注释必须使用 # 前缀，# 后接一个空格
+  comment_format: '# '

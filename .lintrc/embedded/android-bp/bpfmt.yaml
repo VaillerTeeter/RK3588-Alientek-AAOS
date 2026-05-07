@@ -1,0 +1,121 @@
+---
+# Android Blueprint (Soong) Lint 配置 — RK3588-Alientek-AAOS 项目（全量严格模式）
+# 工具：
+#   bpfmt   — Android.bp 格式化工具（AOSP prebuilts/build-tools/）
+#   bpcheck — Android.bp 语法/语义校验工具
+#   androidmk — Android.mk → Android.bp 转换工具
+# 文档：https://android.googlesource.com/platform/build/soong/
+#       https://ci.android.com/builds/latest/branches/aosp-main/targets/linux/view/soong_build.html
+#
+# 注意：bpfmt 不读取本配置文件，本文件作为 CI 脚本的权威配置来源。
+#
+# 用法（CI）：
+#   # 格式检查（有 diff 即报错）：
+#   bpfmt -l $(find . -name Android.bp -not -path '*/out/*') \
+#     | grep . && exit 1 || exit 0
+#
+#   # 语义校验（需要 Android build 环境）：
+#   cd $ANDROID_BUILD_TOP && source build/envsetup.sh && lunch rk3588_car-userdebug
+#   m blueprint_tools && bpcheck $(find . -name Android.bp -not -path '*/out/*')
+
+# ------------------------------------------------------------------
+# 格式化规则（bpfmt 固定行为，不可配置）
+# ------------------------------------------------------------------
+format:
+  # bpfmt 强制 4 空格缩进（不可配置）
+  indent_size: 4
+
+  # bpfmt 强制规范化属性顺序（name 在首位）
+  canonical_property_order: true
+
+  # bpfmt 强制列表内元素换行对齐
+  multiline_lists: true
+
+  # CI 策略：任何文件经 bpfmt 处理后产生 diff 均视为失败
+  fail_on_diff: true
+
+# ------------------------------------------------------------------
+# 模块设计策略
+# ------------------------------------------------------------------
+policy:
+  # 每个模块必须显式声明 name 属性
+  require_name: true
+
+  # 每个模块必须声明 default_applicable_licenses 或 license_kinds
+  require_license: true
+
+  # cc_binary / cc_test / android_app 必须设置 sdk_version
+  require_sdk_version: true
+
+  # 所有 cc_library / cc_binary 必须包含 sanitize 块
+  # 防止意外关闭 ASAN/TSAN 等 sanitizer
+  require_sanitize_block: true
+
+  # 禁止 cflags: ["-w"]（屏蔽全部编译警告）
+  forbid_warning_suppression_flag: "-w"
+
+  # 禁止 cflags: ["-fpermissive"]（允许非法 C++ 代码）
+  forbid_fpermissive: true
+
+  # 禁止 cflags: ["-Wno-error"]（将警告降级，影响质量门禁）
+  forbid_wno_error: true
+
+  # 禁止 cflags: ["-O0"]（关闭优化，生产代码必须优化）
+  # 例外：显式标注测试/调试模块
+  forbid_no_optimization_in_production: true
+
+  # vendor/ 分区下的模块必须设置 vendor: true
+  require_vendor_flag_in_vendor_partition: true
+
+  # system_ext/ 分区下的模块必须设置 system_ext_specific: true
+  require_system_ext_flag_in_system_ext_partition: true
+
+  # cc_library_shared 不得将 private 头文件目录加入 export_include_dirs
+  forbid_private_header_export: true
+
+  # 所有 cc_library / cc_binary 必须显式声明 stl
+  # 避免隐式链接 libc++ 导致 ABI 问题
+  require_explicit_stl: true
+
+  # 禁止使用 LOCAL_* 变量（Android.mk 风格，不属于 .bp 语法）
+  forbid_local_variables: true
+
+  # android_app 模块必须设置 certificate（避免使用 platform 签名）
+  require_certificate: true
+
+  # 禁止 privileged_app 权限组合 + platform 证书（最高风险）
+  forbid_privileged_with_platform_cert: true
+
+  # cc_test 模块必须设置 test_suites（确保测试接入 CI）
+  require_test_suites_for_cc_test: true
+
+  # prebuilt_* 模块必须声明 check_elf_files 或 strip
+  require_prebuilt_check: true
+
+# ------------------------------------------------------------------
+# 依赖管理
+# ------------------------------------------------------------------
+dependencies:
+  # 禁止直接 link libbinder（应通过接口抽象层）
+  # 例外：libbinder 本身及极少数系统服务
+  warn_direct_libbinder_link: true
+
+  # 禁止在 vendor 模块中 link system partition 的私有库
+  forbid_system_private_lib_in_vendor: true
+
+  # 禁止循环依赖
+  forbid_circular_deps: true
+
+  # 所有 shared_libs 优先使用 AIDL/HIDL 接口，而非直接 link HAL 实现
+  warn_direct_hal_impl_link: true
+
+# ------------------------------------------------------------------
+# 命名规范
+# ------------------------------------------------------------------
+naming:
+  # 模块名：lowercase，允许点、下划线、连字符、@、/
+  module_name_pattern: '^[a-z][a-z0-9_.@/-]*$'
+
+  # 输出文件名（stem / suffix）：与模块名保持一致
+  # 不强制正则，但建议与模块名对应
+  consistent_stem_with_name: true

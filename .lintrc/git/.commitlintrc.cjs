@@ -1,5 +1,3 @@
-// @ts-check
-/** @type {import('@commitlint/types').UserConfig} */
 module.exports = {
   extends: ['@commitlint/config-conventional'],
   parserPreset: 'conventional-changelog-conventionalcommits',
@@ -29,7 +27,9 @@ module.exports = {
     'type-empty': [2, 'never'],
 
     'scope-case': [2, 'always', 'lower-case'],
-    'scope-empty': [0],
+    // This project has distinct modules: kernel, uboot, android, build, ci, docs, security, etc.
+    // Scope is required to make history traceable across modules.
+    'scope-empty': [2, 'never'],
 
     'subject-case': [2, 'never', ['sentence-case', 'start-case', 'pascal-case', 'upper-case']],
     'subject-empty': [2, 'never'],

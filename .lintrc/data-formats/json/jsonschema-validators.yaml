@@ -1,0 +1,74 @@
+# check-jsonschema / AJV JSON Schema 校验配置
+# 文档：https://check-jsonschema.readthedocs.io/en/stable/
+# 用法：check-jsonschema --config .lintrc/data-formats/json/jsonschema-validators.yaml <file.json>
+#
+# 验证器调用参考：
+#
+# check-jsonschema（Python）：
+#   check-jsonschema --schemafile <schema.json> <file.json>
+#
+# AJV（Node.js）严格模式：
+#   ajv validate \
+#     --strict=true \
+#     --strict-types=true \
+#     --strict-tuples=true \
+#     --all-errors \
+#     --verbose \
+#     -s <schema.json> \
+#     -d <file.json>
+#   标志说明：
+#     strict=true         禁止 schema 中的未知关键字
+#     strict-types=true   禁止隐式 nullable（不允许同时接受 null 和其他类型）
+#     strict-tuples=true  元组 items 禁止 additionalItems
+
+# ── 项目 JSON 文件与 Schema 映射 ─────────────────────────────────────────────
+
+# Schema 来源优先级：
+#   1. 本地 schema 文件（相对于项目根目录）
+#   2. SchemaStore CDN（https://json.schemastore.org/）
+
+schemas:
+  # ── Android / AAOS ─────────────────────────────────────────────────────────
+  - name: "android-app-bundle-config"
+    fileMatch: ["BundleConfig.pb.json", "bundleconfig.json"]
+    url: "https://json.schemastore.org/android-app-bundle-config.json"
+
+  # ── CI / GitHub Actions ──────────────────────────────────────────────────
+  - name: "github-actions-workflow"
+    fileMatch: [".github/workflows/*.json"]
+    url: "https://json.schemastore.org/github-workflow.json"
+
+  - name: "github-funding"
+    fileMatch: [".github/FUNDING.json"]
+    url: "https://json.schemastore.org/github-funding.json"
+
+  # ── 构建工具 / 嵌入式工具链 ──────────────────────────────────────────────
+  - name: "cmake-presets"
+    fileMatch: ["CMakePresets.json", "CMakeUserPresets.json"]
+    url: "https://json.schemastore.org/cmake-presets.json"
+
+  - name: "clang-format"
+    fileMatch: [".clang-format"]
+    url: "https://json.schemastore.org/clang-format.json"
+
+  - name: "clang-tidy"
+    fileMatch: [".clang-tidy"]
+    url: "https://json.schemastore.org/clang-tidy.json"
+
+  # ── Python 工具 ──────────────────────────────────────────────────────────
+  - name: "pyproject"
+    fileMatch: ["pyproject.toml"]
+    url: "https://json.schemastore.org/pyproject.json"
+
+  # ── 项目通用配置 ─────────────────────────────────────────────────────────
+  - name: "editorconfig"
+    fileMatch: [".editorconfig"]
+    url: "https://json.schemastore.org/editorconfig.json"
+
+  - name: "markdownlint"
+    fileMatch: [".markdownlint.json", ".markdownlint.jsonc"]
+    url: "https://json.schemastore.org/markdownlint.json"
+
+  - name: "commitlint"
+    fileMatch: [".commitlintrc.json", "commitlint.config.json"]
+    url: "https://json.schemastore.org/commitlintrc.json"

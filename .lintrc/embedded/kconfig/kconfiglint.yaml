@@ -1,0 +1,173 @@
+---
+# Kconfig Lint 配置 — RK3588-Alientek-AAOS 项目（全量严格模式）
+# 工具：
+#   kconfiglib  — Python Kconfig 解析库（pip install kconfiglib）
+#   内核工具    — scripts/kconfig/（随内核源码提供）
+# 文档：
+#   https://github.com/ulfalizer/Kconfiglib
+#   https://www.kernel.org/doc/html/latest/kbuild/kconfig-language.html
+#   https://www.kernel.org/doc/html/latest/kbuild/kconfig-macro-language.html
+#
+# 用法（CI）：
+#   # 方法一：kconfiglib 检查 defconfig 是否包含未定义的 symbol
+#   python3 -c "
+#     import kconfiglib, sys
+#     kconf = kconfiglib.Kconfig('Android-13/rk-kernel-5.10/Kconfig')
+#     kconf.load_config('arch/arm64/configs/rockchip_defconfig')
+#     for sym in kconf.defined_syms:
+#         if sym.str_value != sym.str_default_value and \
+#            sym.name not in open('arch/arm64/configs/rockchip_defconfig').read():
+#             print(f'WARNING: {sym.name} not in defconfig but not default')
+#   "
+#
+#   # 方法二：内核 olddefconfig 验证（消除无效条目）
+#   make -C Android-13/rk-kernel-5.10 \
+#     ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+#     KCONFIG_CONFIG=$(pwd)/arch/arm64/configs/rockchip_defconfig \
+#     olddefconfig
+#
+#   # 方法三：savedefconfig 验证最简化
+#   make -C Android-13/rk-kernel-5.10 \
+#     ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+#     KCONFIG_CONFIG=$(pwd)/arch/arm64/configs/rockchip_defconfig \
+#     savedefconfig
+#   diff defconfig arch/arm64/configs/rockchip_defconfig
+
+# ------------------------------------------------------------------
+# Kconfig 文件本身的静态检查规则
+# ------------------------------------------------------------------
+checks:
+  # 禁止 symbol 重复定义（同一 symbol 在多个 Kconfig 文件中声明）
+  no_duplicate_symbols: true
+
+  # 禁止引用未定义的 symbol（在 depends on / select 中）
+  no_undefined_symbol_references: true
+
+  # 所有 bool/tristate symbol 必须有 prompt（用户可见的菜单条目）
+  # 例外：仅供 select 使用的内部 symbol，应用 # no_prompt_ok 注释标注
+  require_prompt: true
+
+  # 所有有 prompt 的 symbol 必须有 help 文本
+  require_help_text: true
+
+  # help 文本最少字符数（防止空白 help 文本）
+  min_help_length: 20
+
+  # 使用 select 的 symbol 必须是 bool 类型
+  # （tristate select 会导致依赖传递问题）
+  require_bool_for_select: true
+
+  # 禁止 select 引入不被当前 depends on 覆盖的 symbol
+  # （select 会忽略被选中 symbol 的 depends on，可能导致非法配置）
+  warn_unconstrained_select: true
+
+  # 禁止 imply 替代 select（imply 是弱暗示，可能造成配置不一致）
+  warn_imply_instead_of_select: false  # 部分场景 imply 合法
+
+  # 所有 config 块必须位于 menu...endmenu 或顶层（不允许孤立 config）
+  require_menu_context: false  # Kconfig 本身允许顶层 config
+
+  # 禁止 mainmenu 重复声明
+  no_duplicate_mainmenu: true
+
+  # 禁止空 menu（无任何条目的 menu...endmenu 块）
+  forbid_empty_menu: true
+
+  # 禁止 choice 块中只有一个选项
+  forbid_single_choice: true
+
+# ------------------------------------------------------------------
+# 命名规范
+# ------------------------------------------------------------------
+naming:
+  # symbol 名：UPPER_SNAKE_CASE（内核 Kconfig 标准）
+  symbol_name_pattern: '^[A-Z][A-Z0-9_]+$'
+
+  # menu 标题：句首大写，最大 72 字符
+  max_menu_title_length: 72
+
+  # prompt 文本：句首大写，最大 72 字符
+  max_prompt_length: 72
+
+# ------------------------------------------------------------------
+# defconfig 文件规则
+# ------------------------------------------------------------------
+defconfig:
+  # defconfig 中禁止出现值等于默认值的条目（必须最简化）
+  # 即：只有显式修改了默认值的 symbol 才应出现在 defconfig 中
+  no_default_value_entries: true
+
+  # defconfig 中禁止引用不存在于当前 Kconfig 树中的 symbol
+  no_undefined_symbols: true
+
+  # defconfig 中被显式禁用（=n）的 symbol 必须有合理理由
+  # （=n 通常可以省略，除非是防止他处自动启用）
+  warn_explicit_n_entries: true
+
+  # 生产 defconfig 中禁止出现以下调试/开发 symbol
+  # （会降低安全性或性能）
+  forbidden_in_production:
+    - CONFIG_DEBUG_KERNEL          # 调试内核（总入口，启用则开放大量调试）
+    - CONFIG_KASAN                 # 内核地址消毒剂（严重影响性能）
+    - CONFIG_KASAN_INLINE          # KASAN 内联模式
+    - CONFIG_UBSAN                 # 未定义行为消毒剂
+    - CONFIG_KCSAN                 # 数据竞争检测器
+    - CONFIG_LOCKDEP               # 锁依赖检测（极大性能开销）
+    - CONFIG_PROVE_LOCKING         # 锁正确性证明
+    - CONFIG_LOCK_STAT             # 锁统计
+    - CONFIG_DEBUG_LOCK_ALLOC      # 锁分配调试
+    - CONFIG_DEBUG_SPINLOCK        # 自旋锁调试
+    - CONFIG_DEBUG_MUTEXES         # 互斥锁调试
+    - CONFIG_DEBUG_ATOMIC_SLEEP    # 原子上下文睡眠检测
+    - CONFIG_DEBUG_FS              # debugfs（暴露内核内部状态）
+    - CONFIG_KALLSYMS_ALL          # 导出所有内核符号（辅助攻击）
+    - CONFIG_MAGIC_SYSRQ           # SysRq 键（特权调试接口）
+    - CONFIG_KPROBES               # 内核探针
+    - CONFIG_KRETPROBES            # 函数返回探针
+    - CONFIG_FTRACE                # 函数跟踪器
+    - CONFIG_DYNAMIC_DEBUG         # 动态调试打印
+    - CONFIG_SLUB_DEBUG            # SLUB 分配器调试
+    - CONFIG_PAGE_POISONING        # 页面毒化检测
+    - CONFIG_PANIC_ON_OOPS         # OOPs 时 panic（非生产所需）
+    - CONFIG_DETECT_HUNG_TASK      # 死锁任务检测
+
+  # 生产 defconfig 中必须启用的安全相关 symbol
+  required_in_production:
+    - CONFIG_SECURITY              # LSM 安全框架（总开关）
+    - CONFIG_SECURITY_SELINUX      # SELinux（Android 强制要求）
+    - CONFIG_SECURITY_SELINUX_BOOTPARAM  # SELinux bootparam
+    - CONFIG_HARDENED_USERCOPY     # 用户空间拷贝加固
+    - CONFIG_FORTIFY_SOURCE        # _FORTIFY_SOURCE 编译时缓冲区检查
+    - CONFIG_STACKPROTECTOR_STRONG # 强栈保护（SSP）
+    - CONFIG_RANDOMIZE_BASE        # KASLR 内核地址随机化
+    - CONFIG_STRICT_KERNEL_RWX    # 内核代码段只读
+    - CONFIG_STRICT_MODULE_RWX    # 模块代码段只读
+    - CONFIG_CC_STACKPROTECTOR_STRONG  # 编译器栈保护
+    - CONFIG_SYN_COOKIES           # TCP SYN Cookie（防 DDoS）
+    - CONFIG_DEFAULT_MMAP_MIN_ADDR # mmap 最低地址限制（防 null deref 攻击）
+
+# ------------------------------------------------------------------
+# 代码风格
+# ------------------------------------------------------------------
+style:
+  # 缩进：1 个制表符（Kconfig 标准）
+  indent_style: tab
+  indent_size: 1
+
+  # 禁止混用制表符和空格
+  forbid_mixed_indentation: true
+
+  # 最大行宽（help 文本除外）
+  max_line_length: 80
+
+  # help 文本最大行宽（内核惯例）
+  max_help_line_length: 72
+
+  # help 文本第一行必须为空行后的内容描述
+  help_first_line_empty: false  # 内核 help 不要求第一行为空
+
+  # config 块之间不需要空行（Kconfig 允许紧凑排布）
+  require_blank_line_between_configs: false
+
+  # menu...endmenu 内的条目必须缩进
+  require_indented_menu_items: true

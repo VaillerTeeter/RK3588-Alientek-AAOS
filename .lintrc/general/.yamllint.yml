@@ -1,24 +1,87 @@
 ---
-# yamllint 配置
+# yamllint 配置 — 全量严格模式（RK3588-Alientek-AAOS 项目）
 # 文档：https://yamllint.readthedocs.io/en/stable/configuration.html
-# 用途：通用宽松规则，供 CI（yaml-lint job）及本地开发使用
+# 用法：yamllint -c .lintrc/general/.yamllint.yml <file>
 
 extends: default
 
 rules:
-  # 行长度：CI workflow 中的 run 块较长，放宽限制
+  # 行长度：严格限制 80 列
   line-length:
-    max: 200
+    max: 80
+    allow-non-breakable-inline-mappings: false
+    level: error
 
-  # 冒号：允许最多两个空格（用于 YAML 对齐场景）
+  # 缩进：2 空格，检查多行字符串
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: true
+
+  # 空行：最多 1 行，文件首尾不允许空行
+  empty-lines:
+    max: 1
+    max-start: 0
+    max-end: 0
+
+  # 花括号：内部无空格
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+
+  # 方括号：内部无空格
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+
+  # 冒号：规范格式
   colons:
-    max-spaces-after: 2
+    max-spaces-before: 0
+    max-spaces-after: 1
 
-  # 布尔值：允许 on 用于 GitHub Actions 的 on: 触发器
-  truthy:
-    allowed-values: ["true", "false", "on"]
-    check-keys: false
+  # 逗号：规范格式
+  commas:
+    max-spaces-before: 0
+    min-spaces-after: 1
+    max-spaces-after: 1
 
-  # 注释：允许紧贴内容后的注释
+  # 注释：与内容之间至少 2 个空格
   comments:
-    min-spaces-from-content: 1
+    min-spaces-from-content: 2
+
+  # 引号：必要时使用双引号
+  quoted-strings:
+    quote-type: double
+    required: only-when-needed
+    level: error
+
+  # 键排序：所有映射的键必须按字母顺序排列
+  key-ordering:
+    level: error
+
+  # 布尔值：仅允许 true / false（小写字面量）
+  # check-keys: false — 豁免 GitHub Actions on: 触发器键名，不作布尔检查
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false
+    level: error
+
+  # 八进制：禁止隐式/显式八进制字面量
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+    level: error
+
+  # 浮点数：禁止 inf / nan / 科学计数法
+  float-values:
+    forbid-inf: true
+    forbid-nan: true
+    forbid-scientific-notation: true
+    level: error
+
+  # 锚点：禁止未声明别名、重复锚点、未使用锚点
+  anchors:
+    forbid-undeclared-aliases: true
+    forbid-duplicated-anchors: true
+    forbid-unused-anchors: true
+    level: error
