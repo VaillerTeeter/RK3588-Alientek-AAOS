@@ -14,3 +14,52 @@ trim_trailing_whitespace = false
 # GPL v3 standard legal text — indentation is part of the original document
 [LICENSE]
 indent_size = unset
+
+# ── 语言专项覆盖（覆盖 [*] 全局默认）─────────────────────────────
+
+# C / C++ — clang-format IndentWidth=4，ColumnLimit=100（.lintrc/backend/c-cpp/.clang-format）
+[*.{c,h,cpp,cc,hpp}]
+indent_size = 4
+max_line_length = 100
+
+# Python — ruff indent-width=4，line-length=100（.lintrc/backend/python/ruff.toml）
+[*.py]
+indent_size = 4
+max_line_length = 100
+
+# Java — Checkstyle 行长 100（.lintrc/backend/java/checkstyle.xml）
+[*.java]
+indent_size = 4
+max_line_length = 100
+
+# Kotlin — detekt / ktlint 行长 140（.lintrc/backend/kotlin/detekt.yml）
+[*.kt]
+indent_size = 4
+max_line_length = 140
+
+# Rust — rustfmt max_width=100（.lintrc/backend/rust/rustfmt.toml）
+[*.rs]
+indent_size = 4
+max_line_length = 100
+
+# Go — gofmt 强制 tab 缩进
+[*.go]
+indent_style = tab
+indent_size = 4
+
+# Makefile / Android.mk / Kbuild — recipe 行必须以 tab 开头
+[Makefile]
+indent_style = tab
+indent_size = 4
+
+[Kbuild]
+indent_style = tab
+indent_size = 4
+
+[*.mk]
+indent_style = tab
+indent_size = 4
+
+# Perl — 行长无硬性限制，缩进沿用全局 2 空格（perlcritic 管格式）
+[*.pl]
+indent_size = 4

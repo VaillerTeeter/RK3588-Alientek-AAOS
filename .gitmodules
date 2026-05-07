@@ -4,3 +4,7 @@
 [submodule "Android-13/rkbin"]
 	path = Android-13/rkbin
 	url = https://github.com/VaillerTeeter/Rockchip-RK3588-rkbin
+[submodule "Android-13/rk-kernel-5.10"]
+	path = Android-13/rk-kernel-5.10
+	url = https://github.com/VaillerTeeter/Rockchip-RK3588-kernel-5.10
+	shallow = true
