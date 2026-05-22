@@ -20,27 +20,27 @@ indent_size = unset
 # C / C++ — clang-format IndentWidth=4，ColumnLimit=100（.lintrc/backend/c-cpp/.clang-format）
 [*.{c,h,cpp,cc,hpp}]
 indent_size = 4
-max_line_length = 100
+max_line_length = 150
 
 # Python — ruff indent-width=4，line-length=100（.lintrc/backend/python/ruff.toml）
 [*.py]
 indent_size = 4
-max_line_length = 100
+max_line_length = 150
 
 # Java — Checkstyle 行长 100（.lintrc/backend/java/checkstyle.xml）
 [*.java]
 indent_size = 4
-max_line_length = 100
+max_line_length = 150
 
 # Kotlin — detekt / ktlint 行长 140（.lintrc/backend/kotlin/detekt.yml）
 [*.kt]
 indent_size = 4
-max_line_length = 140
+max_line_length = 150
 
 # Rust — rustfmt max_width=100（.lintrc/backend/rust/rustfmt.toml）
 [*.rs]
 indent_size = 4
-max_line_length = 100
+max_line_length = 150
 
 # Go — gofmt 强制 tab 缩进
 [*.go]
