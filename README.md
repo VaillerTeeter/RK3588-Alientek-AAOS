@@ -9,7 +9,7 @@
 > 标记说明：`[ ]` 未完成 · `[x]` 已在 V-gatron_defconfig / 当前代码中启用 · `[-]` 不适用/已确认跳过
 
 ---
-
+<!-- TODO: 要搞标准的Android车机的安装包，而不是RK特供的 -->
 ### 一、U-Boot / Bootloader 层
 
 > U-Boot 负责启动链信任根、AVB 校验、A/B slot 选择、调试接口封锁。
