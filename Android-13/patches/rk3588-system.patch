@@ -1,0 +1,481 @@
+diff --git a/system/core/healthd/healthd_draw.h b/system/core/healthd/healthd_draw.h
+index 0000000..0000000 100644
+--- a/system/core/healthd/healthd_draw.h
++++ b/system/core/healthd/healthd_draw.h
+@@ -61,7 +61,7 @@
+   // Draws clock text, if animation contains text_field data.
+   virtual void draw_clock(const animation* anim);
+   // Draws battery percentage text if animation contains text_field data.
+-  virtual void draw_percent(const animation* anim);
++  virtual void draw_percent(const animation* anim, int battery_start);
+   // Draws charger->surf_unknown or basic text.
+   virtual void draw_unknown(GRSurface* surf_unknown);
+
+diff --git a/system/core/healthd/healthd_draw.cpp b/system/core/healthd/healthd_draw.cpp
+index 0000000..0000000 100644
+--- a/system/core/healthd/healthd_draw.cpp
++++ b/system/core/healthd/healthd_draw.cpp
+@@ -205,7 +205,7 @@
+     draw_text(field.font, x, y, clock_str);
+ }
+
+-void HealthdDraw::draw_percent(const animation* anim) {
++void HealthdDraw::draw_percent(const animation* anim, int battery_start) {
+     if (!graphics_available) return;
+     int cur_level = anim->cur_level;
+     if (anim->cur_status == BATTERY_STATUS_FULL) {
+@@ -226,20 +226,21 @@
+
+     LOGV("drawing percent %s %d %d\n", str.c_str(), x, y);
+     gr_color(field.color_r, field.color_g, field.color_b, field.color_a);
+-    draw_text(field.font, x, y, str.c_str());
++    draw_text(field.font, x, battery_start + y, str.c_str());
+ }
+
+ void HealthdDraw::draw_battery(const animation* anim) {
+     if (!graphics_available) return;
++    int battery_start = 0;
+     const animation::frame& frame = anim->frames[anim->cur_frame];
+
+     if (anim->num_frames != 0) {
+-        draw_surface_centered(frame.surface);
++        battery_start = draw_surface_centered(frame.surface);
+         LOGV("drawing frame #%d min_cap=%d time=%d\n", anim->cur_frame, frame.min_level,
+              frame.disp_time);
+     }
+     draw_clock(anim);
+-    draw_percent(anim);
++    draw_percent(anim, battery_start);
+ }
+
+ void HealthdDraw::draw_unknown(GRSurface* surf_unknown) {
+diff --git a/system/core/healthd/healthd_mode_charger.cpp b/system/core/healthd/healthd_mode_charger.cpp
+index 0000000..0000000 100644
+--- a/system/core/healthd/healthd_mode_charger.cpp
++++ b/system/core/healthd/healthd_mode_charger.cpp
+@@ -201,7 +201,7 @@
+ }
+
+ Charger::Charger(ChargerConfigurationInterface* configuration)
+-    : batt_anim_(BASE_ANIMATION), configuration_(configuration) {}
++    : batt_anim_(BASE_ANIMATION), healthd_draw_(nullptr), configuration_(configuration) {}
+
+ Charger::~Charger() {}
+
+diff --git a/system/core/init/devices.cpp b/system/core/init/devices.cpp
+index 0000000..0000000 100644
+--- a/system/core/init/devices.cpp
++++ b/system/core/init/devices.cpp
+@@ -550,6 +550,10 @@
+             int device_id = uevent.minor % 128 + 1;
+             devpath = StringPrintf("/dev/bus/usb/%03d/%03d", bus_id, device_id);
+         }
++#if 1 //Add by quectel for mknod /dev/cdc-wdm0
++    } else if (uevent.subsystem == "usbmisc" && !uevent.device_name.empty()) {
++        devpath = "/dev/" + uevent.device_name;
++#endif
+     } else if (StartsWith(uevent.subsystem, "usb")) {
+         // ignore other USB events
+         return;
+diff --git a/system/core/libcutils/fs_config.cpp b/system/core/libcutils/fs_config.cpp
+index 0000000..0000000 100644
+--- a/system/core/libcutils/fs_config.cpp
++++ b/system/core/libcutils/fs_config.cpp
+@@ -86,7 +86,7 @@
+     { 00751, AID_ROOT,         AID_SHELL,        0, "system/bin" },
+     { 00755, AID_ROOT,         AID_ROOT,         0, "system/etc/ppp" },
+     { 00755, AID_ROOT,         AID_SHELL,        0, "system/vendor" },
+-    { 00750, AID_ROOT,         AID_SHELL,        0, "system/xbin" },
++    { 00755, AID_ROOT,         AID_SHELL,        0, "system/xbin" },
+     { 00751, AID_ROOT,         AID_SHELL,        0, "system/apex/*/bin" },
+     { 00751, AID_ROOT,         AID_SHELL,        0, "system_ext/bin" },
+     { 00751, AID_ROOT,         AID_SHELL,        0, "system_ext/apex/*/bin" },
+@@ -190,7 +190,7 @@
+     // the following two files are INTENTIONALLY set-uid, but they
+     // are NOT included on user builds.
+     { 06755, AID_ROOT,      AID_ROOT,      0, "system/xbin/procmem" },
+-    { 04750, AID_ROOT,      AID_SHELL,     0, "system/xbin/su" },
++    { 06755, AID_ROOT,      AID_SHELL,     0, "system/xbin/su" },
+
+     // the following files have enhanced capabilities and ARE included
+     // in user builds.
+diff --git a/system/core/libsync/Android.bp b/system/core/libsync/Android.bp
+index 0000000..0000000 100644
+--- a/system/core/libsync/Android.bp
++++ b/system/core/libsync/Android.bp
+@@ -53,6 +53,13 @@
+     },
+ }
+
++cc_library {
++    name: "libsync_vendor",
++    vendor_available: true,
++    recovery_available: true,
++    defaults: ["libsync_defaults"],
++}
++
+ cc_test {
+     name: "sync-unit-tests",
+     shared_libs: ["libsync"],
+diff --git a/system/core/rootdir/init.usb.configfs.rc b/system/core/rootdir/init.usb.configfs.rc
+index 0000000..0000000 100644
+--- a/system/core/rootdir/init.usb.configfs.rc
++++ b/system/core/rootdir/init.usb.configfs.rc
+@@ -9,6 +9,7 @@
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+     rmdir /config/usb_gadget/g1/functions/rndis.gs4
++    rmdir /config/usb_gadget/g1/functions/ncm.gs7
+     setprop sys.usb.state ${sys.usb.config}
+
+ on property:init.svc.adbd=stopped
+@@ -138,3 +139,21 @@
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
++
++on property:sys.usb.config=ncm && property:sys.usb.configfs=1
++    mkdir /config/usb_gadget/g1/functions/ncm.gs7
++    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "ncm"
++    symlink /config/usb_gadget/g1/functions/ncm.gs7 /config/usb_gadget/g1/configs/b.1/f1
++    write /config/usb_gadget/g1/UDC ${sys.usb.controller}
++    setprop sys.usb.state ${sys.usb.config}
++
++on property:sys.usb.config=ncm,adb && property:sys.usb.configfs=1
++    start adbd
++
++on property:sys.usb.ffs.ready=1 && property:sys.usb.config=ncm,adb && property:sys.usb.configfs=1
++    mkdir /config/usb_gadget/g1/functions/ncm.gs7
++    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "ncm_adb"
++    symlink /config/usb_gadget/g1/functions/ncm.gs7 /config/usb_gadget/g1/configs/b.1/f1
++    symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
++    write /config/usb_gadget/g1/UDC ${sys.usb.controller}
++    setprop sys.usb.state ${sys.usb.config}
+diff --git a/system/core/rootdir/init.zygote32.rc b/system/core/rootdir/init.zygote32.rc
+index 0000000..0000000 100644
+--- a/system/core/rootdir/init.zygote32.rc
++++ b/system/core/rootdir/init.zygote32.rc
+@@ -16,5 +16,6 @@
+     onrestart restart media.tuner
+     onrestart restart netd
+     onrestart restart wificond
++    onrestart restart vendor.tv-input-1-0
+     task_profiles ProcessCapacityHigh
+     critical window=${zygote.critical_window.minute:-off} target=zygote-fatal
+diff --git a/system/core/rootdir/init.zygote64.rc b/system/core/rootdir/init.zygote64.rc
+index 0000000..0000000 100644
+--- a/system/core/rootdir/init.zygote64.rc
++++ b/system/core/rootdir/init.zygote64.rc
+@@ -16,5 +16,6 @@
+     onrestart restart media.tuner
+     onrestart restart netd
+     onrestart restart wificond
++    onrestart restart vendor.tv-input-1-0
+     task_profiles ProcessCapacityHigh
+     critical window=${zygote.critical_window.minute:-off} target=zygote-fatal
+diff --git a/system/core/rootdir/init.zygote64_32.rc b/system/core/rootdir/init.zygote64_32.rc
+index 0000000..0000000 100644
+--- a/system/core/rootdir/init.zygote64_32.rc
++++ b/system/core/rootdir/init.zygote64_32.rc
+@@ -13,6 +13,7 @@
+     onrestart restart media.tuner
+     onrestart restart netd
+     onrestart restart wificond
++    onrestart restart vendor.tv-input-1-0
+     task_profiles ProcessCapacityHigh MaxPerformance
+     critical window=${zygote.critical_window.minute:-off} target=zygote-fatal
+
+diff --git a/system/extras/su/su.cpp b/system/extras/su/su.cpp
+index 0000000..0000000 100644
+--- a/system/extras/su/su.cpp
++++ b/system/extras/su/su.cpp
+@@ -80,8 +80,8 @@
+ }
+
+ int main(int argc, char** argv) {
+-    uid_t current_uid = getuid();
+-    if (current_uid != AID_ROOT && current_uid != AID_SHELL) error(1, 0, "not allowed");
++    //uid_t current_uid = getuid();
++    //if (current_uid != AID_ROOT && current_uid != AID_SHELL) error(1, 0, "not allowed");
+
+     // Handle -h and --help.
+     ++argv;
+diff --git a/system/media/audio/include/system/audio.h b/system/media/audio/include/system/audio.h
+index 0000000..0000000 100644
+--- a/system/media/audio/include/system/audio.h
++++ b/system/media/audio/include/system/audio.h
+@@ -2214,6 +2214,10 @@
+  */
+
+ #define AUDIO_HARDWARE_MODULE_ID_PRIMARY "primary"
++#define AUDIO_HARDWARE_MODULE_ID_EXT_1 "ext_1"
++#define AUDIO_HARDWARE_MODULE_ID_EXT_2 "ext_2"
++#define AUDIO_HARDWARE_MODULE_ID_EXT_3 "ext_3"
++#define AUDIO_HARDWARE_MODULE_ID_EXT_4 "ext_4"
+ #define AUDIO_HARDWARE_MODULE_ID_A2DP "a2dp"
+ #define AUDIO_HARDWARE_MODULE_ID_USB "usb"
+ #define AUDIO_HARDWARE_MODULE_ID_REMOTE_SUBMIX "r_submix"
+diff --git a/system/media/audio/include/system/audio-base-utils.h b/system/media/audio/include/system/audio-base-utils.h
+index 0000000..0000000 100644
+--- a/system/media/audio/include/system/audio-base-utils.h
++++ b/system/media/audio/include/system/audio-base-utils.h
+@@ -164,6 +164,7 @@
+     AUDIO_DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES, // 0x00000100u
+     AUDIO_DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER,    // 0x00000200u
+     AUDIO_DEVICE_OUT_HDMI,                      // 0x00000400u, OUT_AUX_DIGITAL
++    VX_ROCKCHIP_OUT_HDMI0,
+     AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET,         // 0x00000800u
+     AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET,         // 0x00001000u
+     AUDIO_DEVICE_OUT_USB_ACCESSORY,             // 0x00002000u
+@@ -174,6 +175,7 @@
+     AUDIO_DEVICE_OUT_HDMI_ARC,                  // 0x00040000u
+     AUDIO_DEVICE_OUT_HDMI_EARC,                 // 0x00040001u,
+     AUDIO_DEVICE_OUT_SPDIF,                     // 0x00080000u
++    VX_ROCKCHIP_OUT_SPDIF0,
+     AUDIO_DEVICE_OUT_FM,                        // 0x00100000u
+     AUDIO_DEVICE_OUT_AUX_LINE,                  // 0x00200000u
+     AUDIO_DEVICE_OUT_SPEAKER_SAFE,              // 0x00400000u
+@@ -243,6 +245,7 @@
+     AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET,      // 0x80000008u
+     AUDIO_DEVICE_IN_WIRED_HEADSET,              // 0x80000010u
+     AUDIO_DEVICE_IN_HDMI,                       // 0x80000020u, IN_AUX_DIGITAL
++    VX_ROCKCHIP_IN_HDMI0,
+     AUDIO_DEVICE_IN_TELEPHONY_RX,               // 0x80000040u, IN_VOICE_CALL
+     AUDIO_DEVICE_IN_BACK_MIC,                   // 0x80000080u
+     AUDIO_DEVICE_IN_REMOTE_SUBMIX,              // 0x80000100u
+diff --git a/system/media/audio/include/system/audio-hal-enums.h b/system/media/audio/include/system/audio-hal-enums.h
+index 0000000..0000000 100644
+--- a/system/media/audio/include/system/audio-hal-enums.h
++++ b/system/media/audio/include/system/audio-hal-enums.h
+@@ -340,6 +340,7 @@
+     V(AUDIO_DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES, 0x100u) \
+     V(AUDIO_DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER, 0x200u) \
+     V(AUDIO_DEVICE_OUT_HDMI, 0x400u) \
++    V(VX_ROCKCHIP_OUT_HDMI0, 0x401u) \
+     V(AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET, 0x800u) \
+     V(AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET, 0x1000u) \
+     V(AUDIO_DEVICE_OUT_USB_ACCESSORY, 0x2000u) \
+@@ -350,6 +351,7 @@
+     V(AUDIO_DEVICE_OUT_HDMI_ARC, 0x40000u) \
+     V(AUDIO_DEVICE_OUT_HDMI_EARC, 0x40001u) \
+     V(AUDIO_DEVICE_OUT_SPDIF, 0x80000u) \
++    V(VX_ROCKCHIP_OUT_SPDIF0, 0x80001u) \
+     V(AUDIO_DEVICE_OUT_FM, 0x100000u) \
+     V(AUDIO_DEVICE_OUT_AUX_LINE, 0x200000u) \
+     V(AUDIO_DEVICE_OUT_SPEAKER_SAFE, 0x400000u) \
+@@ -369,6 +371,7 @@
+     V(AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET, AUDIO_DEVICE_BIT_IN | 0x8u) \
+     V(AUDIO_DEVICE_IN_WIRED_HEADSET, AUDIO_DEVICE_BIT_IN | 0x10u) \
+     V(AUDIO_DEVICE_IN_HDMI, AUDIO_DEVICE_BIT_IN | 0x20u) \
++    V(VX_ROCKCHIP_IN_HDMI0, AUDIO_DEVICE_BIT_IN | 0x21u) \
+     V(AUDIO_DEVICE_IN_TELEPHONY_RX, AUDIO_DEVICE_BIT_IN | 0x40u) \
+     V(AUDIO_DEVICE_IN_BACK_MIC, AUDIO_DEVICE_BIT_IN | 0x80u) \
+     V(AUDIO_DEVICE_IN_REMOTE_SUBMIX, AUDIO_DEVICE_BIT_IN | 0x100u) \
+diff --git a/system/vold/Android.bp b/system/vold/Android.bp
+index 0000000..0000000 100644
+--- a/system/vold/Android.bp
++++ b/system/vold/Android.bp
+@@ -135,6 +135,7 @@
+         "fs/Ext4.cpp",
+         "fs/F2fs.cpp",
+         "fs/Vfat.cpp",
++        "fs/Ntfs.cpp",
+         "model/Disk.cpp",
+         "model/EmulatedVolume.cpp",
+         "model/ObbVolume.cpp",
+diff --git a/system/vold/VoldUtil.h b/system/vold/VoldUtil.h
+index 0000000..0000000 100644
+--- a/system/vold/VoldUtil.h
++++ b/system/vold/VoldUtil.h
+@@ -17,7 +17,9 @@
+ #pragma once
+
+ #include <fstab/fstab.h>
++#include <sys/cdefs.h>
+
+ extern android::fs_mgr::Fstab fstab_default;
+
+ #define DATA_MNT_POINT "/data"
++#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+diff --git a/system/vold/model/Disk.cpp b/system/vold/model/Disk.cpp
+index 0000000..0000000 100644
+--- a/system/vold/model/Disk.cpp
++++ b/system/vold/model/Disk.cpp
+@@ -53,7 +53,7 @@
+
+ static const char* kSysfsLoopMaxMinors = "/sys/module/loop/parameters/max_part";
+ static const char* kSysfsMmcMaxMinorsDeprecated = "/sys/module/mmcblk/parameters/perdev_minors";
+-static const char* kSysfsMmcMaxMinors = "/sys/module/mmc_block/parameters/perdev_minors";
++static const char* kSysfsMmcMaxMinors = "/sys/module/mmcblk/parameters/perdev_minors";
+
+ static const unsigned int kMajorBlockLoop = 7;
+ static const unsigned int kMajorBlockScsiA = 8;
+@@ -73,6 +73,7 @@
+ static const unsigned int kMajorBlockScsiO = 134;
+ static const unsigned int kMajorBlockScsiP = 135;
+ static const unsigned int kMajorBlockMmc = 179;
++static const unsigned int kMajorBlockPCIENVME = 259;
+ static const unsigned int kMajorBlockDynamicMin = 234;
+ static const unsigned int kMajorBlockDynamicMax = 512;
+
+@@ -292,6 +293,17 @@
+             }
+             break;
+         }
++        case kMajorBlockPCIENVME: {
++            std::string path(mSysPath + "/device/device/vendor");
++            std::string tmp;
++            if (!ReadFileToString(path, &tmp)) {
++                PLOG(WARNING) << "Failed to read vendor from " << path;
++                return -errno;
++            }
++            tmp = android::base::Trim(tmp);
++            mLabel = tmp;
++            break;
++        }
+         default: {
+             if (IsVirtioBlkDevice(majorId)) {
+                 LOG(DEBUG) << "Recognized experimental block major ID " << majorId
+@@ -349,6 +361,7 @@
+
+     Table table = Table::kUnknown;
+     bool foundParts = false;
++    bool validParts = false;
+     for (const auto& line : output) {
+         auto split = android::base::Split(line, kSgdiskToken);
+         auto it = split.begin();
+@@ -374,7 +387,6 @@
+                 continue;
+             }
+             dev_t partDevice = makedev(major(mDevice), minor(mDevice) + i);
+-
+             if (table == Table::kMbr) {
+                 if (++it == split.end()) continue;
+                 int type = 0;
+@@ -389,6 +401,8 @@
+                     case 0x0b:  // W95 FAT32 (LBA)
+                     case 0x0c:  // W95 FAT32 (LBA)
+                     case 0x0e:  // W95 FAT16 (LBA)
++                    case 0x83:  // W95 FAT16 (LBA)
++                        validParts = true;
+                         createPublicVolume(partDevice);
+                         break;
+                 }
+@@ -397,6 +411,7 @@
+                 auto typeGuid = *it;
+                 if (++it == split.end()) continue;
+                 auto partGuid = *it;
++                validParts = true;
+
+                 if (android::base::EqualsIgnoreCase(typeGuid, kGptBasicData)) {
+                     createPublicVolume(partDevice);
+@@ -408,7 +423,7 @@
+     }
+
+     // Ugly last ditch effort, treat entire disk as partition
+-    if (table == Table::kUnknown || !foundParts) {
++    if (table == Table::kUnknown || !foundParts || !validParts) {
+         LOG(WARNING) << mId << " has unknown partition table; trying entire device";
+
+         std::string fsType;
+@@ -595,6 +610,14 @@
+                 LOG(ERROR) << "Failed to read max minors";
+                 return -errno;
+             }
++            return std::stoi(tmp);
++        }
++        case kMajorBlockPCIENVME: {
++            std::string tmp;
++            if (!ReadFileToString(kSysfsMmcMaxMinors, &tmp)) {
++                LOG(ERROR) << "Failed to read max minors";
++                return -errno;
++            }
+             return std::stoi(tmp);
+         }
+         default: {
+diff --git a/system/vold/model/PublicVolume.cpp b/system/vold/model/PublicVolume.cpp
+index 0000000..0000000 100644
+--- a/system/vold/model/PublicVolume.cpp
++++ b/system/vold/model/PublicVolume.cpp
+@@ -21,6 +21,11 @@
+ #include "VolumeManager.h"
+ #include "fs/Exfat.h"
+ #include "fs/Vfat.h"
++#include "fs/Ext4.h"
++#include "fs/F2fs.h"
++#include "fs/Ntfs.h"
++
++#include <cutils/properties.h>
+
+ #include <android-base/logging.h>
+ #include <android-base/properties.h>
+@@ -110,6 +115,38 @@
+             LOG(ERROR) << getId() << " failed filesystem check";
+             return -EIO;
+         }
++    }  else if (mFsType == "ntfs") {
++        char value[PROPERTY_VALUE_MAX];
++        property_get("ro.factory.storage_suppntfs", value, "");
++        if (strcmp("true", value) == 0) {
++            int res = ntfs::Check(mDevPath.c_str());
++            if (res == 0 || res == 1) {
++                LOG(DEBUG) << getId() << " passed filesystem check";
++            } else {
++                PLOG(ERROR) << getId() << " failed filesystem check";
++                return -EIO;
++            }
++        }
++        else
++        {
++            LOG(DEBUG) << getId() << "Not support Ntfs in BoardConfig";
++        }
++    }  else if (mFsType == "ext4" && ext4::IsSupported()) {
++        int res = ext4::Check(mDevPath, mRawPath);
++        if (res == 0 || res == 1) {
++            LOG(DEBUG) << getId() << " passed filesystem check";
++        } else {
++            PLOG(ERROR) << getId() << " failed filesystem check";
++            return -EIO;
++        }
++    }  else if (mFsType == "f2fs" && f2fs::IsSupported()) {
++        int res = f2fs::Check(mDevPath);
++        if (res == 0) {
++            LOG(DEBUG) << getId() << " passed filesystem check";
++        } else {
++            PLOG(ERROR) << getId() << " failed filesystem check";
++            return -EIO;
++        }
+     } else {
+         LOG(ERROR) << getId() << " unsupported filesystem " << mFsType;
+         return -EIO;
+@@ -152,6 +189,22 @@
+             PLOG(ERROR) << getId() << " failed to mount " << mDevPath;
+             return -EIO;
+         }
++    } else if (mFsType == "ntfs") {
++        if (ntfs::Mount(mDevPath, mRawPath, false, false, false, AID_ROOT,
++                        (isVisible ? AID_MEDIA_RW : AID_EXTERNAL_STORAGE), 0007, true)) {
++            PLOG(ERROR) << getId() << " nfts failed to mount " << mDevPath;
++            return -EIO;
++        }
++    } else if (mFsType == "ext4") {
++        if (ext4::Mount(mDevPath, mRawPath, false, false, true)) {
++            PLOG(ERROR) << getId() << " failed to mount " << mDevPath;
++            return -EIO;
++        }
++    } else if (mFsType == "f2fs") {
++        if (f2fs::Mount(mDevPath, mRawPath)) {
++            PLOG(ERROR) << getId() << " failed to mount " << mDevPath;
++             return -EIO;
++        }
+     }
+
+     if (getMountFlags() & MountFlags::kPrimary) {
+@@ -195,6 +248,7 @@
+                         "-u", "1023", // AID_MEDIA_RW
+                         "-g", "1023", // AID_MEDIA_RW
+                         "-U", std::to_string(getMountUserId()).c_str(),
++                        "-w",
+                         mRawPath.c_str(),
+                         stableName.c_str(),
+                         NULL)) {

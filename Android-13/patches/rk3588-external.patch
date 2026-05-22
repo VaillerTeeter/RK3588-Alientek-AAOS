@@ -1,0 +1,1017 @@
+diff --git a/external/e2fsprogs/lib/blkid/Android.bp b/external/e2fsprogs/lib/blkid/Android.bp
+index eb5ae48..62b748b 100644
+--- a/external/e2fsprogs/lib/blkid/Android.bp
++++ b/external/e2fsprogs/lib/blkid/Android.bp
+@@ -49,6 +49,17 @@ cc_library {
+             ],
+             enabled: true
+         },
++        android: {
++            local_include_dirs: [
++                "libiconv/include/iconv.h",
++            ],
++            static_libs: [
++                "libiconv-1.16"
++            ],
++            cflags: [
++                "-DUSING_ICONV",
++            ],
++        }
+     },
+
+     cflags: [
+@@ -56,6 +67,7 @@ cc_library {
+         "-Wno-error=pointer-sign",
+         "-Wno-unused-parameter",
+         "-fno-strict-aliasing",
++        "-Wno-unused-variable",
+     ],
+
+     header_libs: ["libext2-headers"],
+diff --git a/external/e2fsprogs/lib/blkid/probe.c b/external/e2fsprogs/lib/blkid/probe.c
+index f8687cd..962b37c 100644
+--- a/external/e2fsprogs/lib/blkid/probe.c
++++ b/external/e2fsprogs/lib/blkid/probe.c
+@@ -37,6 +37,14 @@
+ #include "uuid/uuid.h"
+ #include "probe.h"
+
++
++#ifdef USING_ICONV
++#include <dlfcn.h>
++#include "iconv.h"
++int utf16toUtf8(char *inbuf, size_t len,char *outbuf);
++int gbk2utf8(char *inbuf, size_t inlen, char *outbuf);
++#endif
++
+ static int figure_label_len(const unsigned char *label, int len)
+ {
+ 	const unsigned char *end = label + len - 1;
+@@ -507,6 +515,26 @@ static unsigned char *search_fat_label(struct vfat_dir_entry *dir, int count)
+ 	return 0;
+ }
+
++#ifdef USING_ICONV
++int gbk2utf8(char *inbuf, size_t inlen, char *outbuf)
++{
++    char **pin = &inbuf;
++    char **pout = &outbuf;
++    size_t dlen= 32 * 4;
++    size_t ret = -1;
++    iconv_t cd = iconv_open("UTF-8","GB2312");
++    if (cd==NULL){
++        printf("iconv open error!!");
++        return -1;
++    }
++    printf("iconv begin inbuf = %s, inlen = %zu, outbuf = %s, dlen = %zu\n", inbuf, inlen, outbuf, dlen);
++    ret = iconv(cd, pin, &inlen, pout, &dlen);
++    printf("iconv end ret = %zu, inbuf = %s, inlen = %zu, outbuf = %s, dlen = %zu\n", ret, inbuf, inlen, outbuf, dlen);
++    iconv_close(cd);
++    return 0;
++}
++#endif
++
+ /* FAT label extraction from the root directory taken from Kay
+  * Sievers's volume_id library */
+ static int probe_fat(struct blkid_probe *probe,
+@@ -618,8 +646,19 @@ static int probe_fat(struct blkid_probe *probe,
+ 	}
+
+ 	if (vol_label && memcmp(vol_label, no_name, 11)) {
+-		if ((label_len = figure_label_len(vol_label, 11)))
+-			label = vol_label;
++		if ((label_len = figure_label_len(vol_label, 11))) {
++#ifdef USING_ICONV
++                    char tmp[129];
++                    memset((void*)tmp, 0, 129);
++                    printf("fat32 before gbk2utf8 vol_label=(%s), tmp=(%s), label_len=%d\n", vol_label, tmp, label_len);
++                    int ret = gbk2utf8((char *)vol_label, label_len, tmp);
++                    label_len = strlen(tmp);
++                    printf("fat32 end gbk2utf8 vol_label=(%s), tmp=(%s), label_len=%d, ret=%d\n", vol_label, tmp, label_len, ret);
++                    label = tmp;
++#else
++                    label = vol_label;
++#endif
++		}
+ 	}
+
+ 	/* We can't just print them as %04X, because they are unaligned */
+@@ -679,6 +718,68 @@ static int probe_fat_nomagic(struct blkid_probe *probe,
+ 	return probe_fat(probe, id, buf);
+ }
+
++static void unicode_16be_to_utf8(unsigned char *str, int out_len,
++    const unsigned char *buf, int in_len)
++{
++    int i, j;
++    unsigned int c;
++
++    for (i = j = 0; i + 2 <= in_len; i += 2) {
++        c = (buf[i] << 8) | buf[i+1];
++        if (c == 0) {
++            str[j] = '\0';
++            break;
++        } else if (c < 0x80) {
++            if (j+1 >= out_len)
++                break;
++            str[j++] = (unsigned char) c;
++        } else if (c < 0x800) {
++            if (j+2 >= out_len)
++                break;
++            str[j++] = (unsigned char) (0xc0 | (c >> 6));
++            str[j++] = (unsigned char) (0x80 | (c & 0x3f));
++        } else {
++            if (j+3 >= out_len)
++                break;
++            str[j++] = (unsigned char) (0xe0 | (c >> 12));
++            str[j++] = (unsigned char) (0x80 | ((c >> 6) & 0x3f));
++            str[j++] = (unsigned char) (0x80 | (c & 0x3f));
++        }
++    }
++    str[j] = '\0';
++}
++
++static void unicode_16le_to_utf8(unsigned char *str, int out_len,
++    const unsigned char *buf, int in_len)
++{
++    int i, j;
++    unsigned int c;
++
++    for (i = j = 0; i + 2 <= in_len; i += 2) {
++        c = (buf[i+1] << 8) | buf[i];
++        if (c == 0) {
++            str[j] = '\0';
++            break;
++        } else if (c < 0x80) {
++            if (j+1 >= out_len)
++                break;
++            str[j++] = (unsigned char) c;
++        } else if (c < 0x800) {
++            if (j+2 >= out_len)
++                break;
++            str[j++] = (unsigned char) (0xc0 | (c >> 6));
++            str[j++] = (unsigned char) (0x80 | (c & 0x3f));
++        } else {
++            if (j+3 >= out_len)
++                break;
++            str[j++] = (unsigned char) (0xe0 | (c >> 12));
++            str[j++] = (unsigned char) (0x80 | ((c >> 6) & 0x3f));
++            str[j++] = (unsigned char) (0x80 | (c & 0x3f));
++        }
++    }
++    str[j] = '\0';
++}
++
+ static int probe_ntfs(struct blkid_probe *probe,
+ 		      struct blkid_magic *id __BLKID_ATTR((unused)),
+ 		      unsigned char *buf)
+@@ -686,7 +787,7 @@ static int probe_ntfs(struct blkid_probe *probe,
+ 	struct ntfs_super_block *ns;
+ 	struct master_file_table_record *mft;
+ 	struct file_attribute *attr;
+-	char		uuid_str[17], label_str[129], *cp;
++	char		uuid_str[17], label_str[129]/*, *cp*/;
+ 	int		bytes_per_sector, sectors_per_cluster;
+ 	int		mft_record_size, attr_off, attr_len;
+ 	unsigned int	i, attr_type, val_len;
+@@ -769,13 +870,10 @@ static int probe_ntfs(struct blkid_probe *probe,
+ 			if (val_len > sizeof(label_str))
+ 				val_len = sizeof(label_str)-1;
+
+-			for (i=0, cp=label_str; i < val_len; i+=2,cp++) {
+-				val = ((__u8 *) attr) + val_off + i;
+-				*cp = val[0];
+-				if (val[1])
+-					*cp = '?';
+-			}
+-			*cp = 0;
++            val = ((__u8 *) attr) + val_off;
++            memset(label_str, 0, sizeof(label_str));
++            unicode_16le_to_utf8(label_str, sizeof(label_str), val, val_len);
++            printf("probe_ntfs --> volume_id_set_label_unicode16 --> %s\n", label_str);
+ 		}
+ 	}
+
+@@ -1130,68 +1228,6 @@ static int probe_gfs2(struct blkid_probe *probe,
+ 	return 1;
+ }
+
+-static void unicode_16be_to_utf8(unsigned char *str, int out_len,
+-				 const unsigned char *buf, int in_len)
+-{
+-	int i, j;
+-	unsigned int c;
+-
+-	for (i = j = 0; i + 2 <= in_len; i += 2) {
+-		c = (buf[i] << 8) | buf[i+1];
+-		if (c == 0) {
+-			str[j] = '\0';
+-			break;
+-		} else if (c < 0x80) {
+-			if (j+1 >= out_len)
+-				break;
+-			str[j++] = (unsigned char) c;
+-		} else if (c < 0x800) {
+-			if (j+2 >= out_len)
+-				break;
+-			str[j++] = (unsigned char) (0xc0 | (c >> 6));
+-			str[j++] = (unsigned char) (0x80 | (c & 0x3f));
+-		} else {
+-			if (j+3 >= out_len)
+-				break;
+-			str[j++] = (unsigned char) (0xe0 | (c >> 12));
+-			str[j++] = (unsigned char) (0x80 | ((c >> 6) & 0x3f));
+-			str[j++] = (unsigned char) (0x80 | (c & 0x3f));
+-		}
+-	}
+-	str[j] = '\0';
+-}
+-
+-static void unicode_16le_to_utf8(unsigned char *str, int out_len,
+-				 const unsigned char *buf, int in_len)
+-{
+-	int i, j;
+-	unsigned int c;
+-
+-	for (i = j = 0; i + 2 <= in_len; i += 2) {
+-		c = (buf[i+1] << 8) | buf[i];
+-		if (c == 0) {
+-			str[j] = '\0';
+-			break;
+-		} else if (c < 0x80) {
+-			if (j+1 >= out_len)
+-				break;
+-			str[j++] = (unsigned char) c;
+-		} else if (c < 0x800) {
+-			if (j+2 >= out_len)
+-				break;
+-			str[j++] = (unsigned char) (0xc0 | (c >> 6));
+-			str[j++] = (unsigned char) (0x80 | (c & 0x3f));
+-		} else {
+-			if (j+3 >= out_len)
+-				break;
+-			str[j++] = (unsigned char) (0xe0 | (c >> 12));
+-			str[j++] = (unsigned char) (0x80 | ((c >> 6) & 0x3f));
+-			str[j++] = (unsigned char) (0x80 | (c & 0x3f));
+-		}
+-	}
+-	str[j] = '\0';
+-}
+-
+ static int probe_hfs(struct blkid_probe *probe __BLKID_ATTR((unused)),
+ 			 struct blkid_magic *id __BLKID_ATTR((unused)),
+ 			 unsigned char *buf)
+diff --git a/external/e2fsprogs/misc/Android.bp b/external/e2fsprogs/misc/Android.bp
+index 78e18e4..4994cf8 100644
+--- a/external/e2fsprogs/misc/Android.bp
++++ b/external/e2fsprogs/misc/Android.bp
+@@ -141,6 +141,7 @@ cc_binary {
+     name: "tune2fs",
+     host_supported: true,
+     vendor_ramdisk_available: true,
++    recovery_available: true,
+     defaults: ["tune2fs-defaults"],
+
+     shared_libs: tune2fs_libs,
+diff --git a/external/e2fsprogs/misc/blkid.c b/external/e2fsprogs/misc/blkid.c
+index 472f017..219bbb6 100644
+--- a/external/e2fsprogs/misc/blkid.c
++++ b/external/e2fsprogs/misc/blkid.c
+@@ -266,7 +266,11 @@ static void print_tags(blkid_dev dev, char *show[], int numtag, int output)
+ 			}
+ 			fputs(type, stdout);
+ 			fputs("=\"", stdout);
+-			safe_print(value, -1);
++            if(strcmp(type, "LABEL") == 0 ){
++                fputs(value, stdout);
++            }else {
++                safe_print(value, -1);
++            }
+ 			fputs("\" ", stdout);
+ 		}
+ 	}
+diff --git a/external/iperf3/src/iperf_api.c b/external/iperf3/src/iperf_api.c
+index 88fed30..83fd09e 100644
+--- a/external/iperf3/src/iperf_api.c
++++ b/external/iperf3/src/iperf_api.c
+@@ -3840,7 +3840,11 @@ iperf_new_stream(struct iperf_test *test, int s, int sender)
+             tempdir = getenv("TMP");
+         }
+         if (tempdir == 0){
+-            tempdir = "/tmp";
++            if (!access("/tmp", 0)) {
++                tempdir = "/tmp";
++            } else {
++                tempdir = "/data/local/tmp";
++            }
+         }
+         snprintf(template, sizeof(template) / sizeof(char), "%s/iperf3.XXXXXX", tempdir);
+     }
+diff --git a/external/libdrm/include/drm/drm_fourcc.h b/external/libdrm/include/drm/drm_fourcc.h
+index 957c7be..384d6d3 100644
+--- a/external/libdrm/include/drm/drm_fourcc.h
++++ b/external/libdrm/include/drm/drm_fourcc.h
+@@ -268,11 +268,22 @@ extern "C" {
+  * index 1 = Cb:Cr plane, [15:0] Cb:Cr little endian
+  */
+ #define DRM_FORMAT_NV12		fourcc_code('N', 'V', '1', '2') /* 2x2 subsampled Cr:Cb plane */
++#define DRM_FORMAT_NV12_10		fourcc_code('N', 'A', '1', '2') /* 2x2 subsampled Cr:Cb plane */
+ #define DRM_FORMAT_NV21		fourcc_code('N', 'V', '2', '1') /* 2x2 subsampled Cb:Cr plane */
+ #define DRM_FORMAT_NV16		fourcc_code('N', 'V', '1', '6') /* 2x1 subsampled Cr:Cb plane */
+ #define DRM_FORMAT_NV61		fourcc_code('N', 'V', '6', '1') /* 2x1 subsampled Cb:Cr plane */
+ #define DRM_FORMAT_NV24		fourcc_code('N', 'V', '2', '4') /* non-subsampled Cr:Cb plane */
+ #define DRM_FORMAT_NV42		fourcc_code('N', 'V', '4', '2') /* non-subsampled Cb:Cr plane */
++
++/*
++* 2 plane YCbCr
++* index 0 = Y plane, [39:0] Y3:Y2:Y1:Y0 little endian
++* index 1 = Cr:Cb plane, [39:0] Cr1:Cb1:Cr0:Cb0 little endian
++*/
++#define DRM_FORMAT_NV15         fourcc_code('N', 'V', '1', '5') /* 2x2 subsampled Cr:Cb plane */
++#define DRM_FORMAT_NV20         fourcc_code('N', 'V', '2', '0') /* 2x1 subsampled Cr:Cb plane */
++#define DRM_FORMAT_NV30         fourcc_code('N', 'V', '3', '0') /* non-subsampled Cr:Cb plane */
++
+ /*
+  * 2 plane YCbCr
+  * index 0 = Y plane, [39:0] Y3:Y2:Y1:Y0 little endian
+diff --git a/external/libdrm/tests/modetest/modetest.c b/external/libdrm/tests/modetest/modetest.c
+index 5fd22f7..a4f4b80 100644
+--- a/external/libdrm/tests/modetest/modetest.c
++++ b/external/libdrm/tests/modetest/modetest.c
+@@ -605,6 +605,7 @@ static struct resources *get_resources(struct device *dev)
+ 		return NULL;
+
+ 	drmSetClientCap(dev->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
++	drmSetClientCap(dev->fd, DRM_CLIENT_CAP_ATOMIC, 1);
+
+ 	_res = drmModeGetResources(dev->fd);
+ 	if (!_res) {
+diff --git a/external/libdrm/tests/util/format.c b/external/libdrm/tests/util/format.c
+index 1ca1b82..3106f6c 100644
+--- a/external/libdrm/tests/util/format.c
++++ b/external/libdrm/tests/util/format.c
+@@ -51,6 +51,9 @@ static const struct util_format_info format_info[] = {
+ 	{ DRM_FORMAT_NV21, "NV21", MAKE_YUV_INFO(YUV_YCrCb, 2, 2, 2) },
+ 	{ DRM_FORMAT_NV16, "NV16", MAKE_YUV_INFO(YUV_YCbCr, 2, 1, 2) },
+ 	{ DRM_FORMAT_NV61, "NV61", MAKE_YUV_INFO(YUV_YCrCb, 2, 1, 2) },
++	{ DRM_FORMAT_NV15, "NV15", MAKE_YUV_INFO(YUV_YCrCb, 2, 2, 2) },
++	{ DRM_FORMAT_NV20, "NV20", MAKE_YUV_INFO(YUV_YCrCb, 2, 2, 2) },
++	{ DRM_FORMAT_NV30, "NV30", MAKE_YUV_INFO(YUV_YCrCb, 2, 2, 2) },
+ 	/* YUV planar */
+ 	{ DRM_FORMAT_YUV420, "YU12", MAKE_YUV_INFO(YUV_YCbCr, 2, 2, 1) },
+ 	{ DRM_FORMAT_YVU420, "YV12", MAKE_YUV_INFO(YUV_YCrCb, 2, 2, 1) },
+diff --git a/external/libdrm/xf86drmMode.c b/external/libdrm/xf86drmMode.c
+index 84d3c77..5e79e89 100644
+--- a/external/libdrm/xf86drmMode.c
++++ b/external/libdrm/xf86drmMode.c
+@@ -315,6 +315,31 @@ drm_public int drmModeAddFB2(int fd, uint32_t width, uint32_t height,
+ 					  buf_id, flags);
+ }
+
++int drmModeAddFB2_ext(int fd, uint32_t width, uint32_t height,
++                 uint32_t pixel_format, uint32_t bo_handles[4],
++                 uint32_t pitches[4], uint32_t offsets[4], __u64 modifier[4],
++                 uint32_t *buf_id, uint32_t flags)
++{
++       struct drm_mode_fb_cmd2 f;
++       int ret;
++       int i;
++
++       f.width  = width;
++       f.height = height;
++       f.pixel_format = pixel_format;
++       f.flags = flags;
++       memcpy(f.handles, bo_handles, 4 * sizeof(bo_handles[0]));
++       memcpy(f.pitches, pitches, 4 * sizeof(pitches[0]));
++       memcpy(f.offsets, offsets, 4 * sizeof(offsets[0]));
++       memcpy(f.modifier, modifier, 4 * sizeof(modifier[0]));
++
++       if ((ret = DRM_IOCTL(fd, DRM_IOCTL_MODE_ADDFB2, &f)))
++               return ret;
++
++       *buf_id = f.fb_id;
++       return 0;
++}
++
+ drm_public int drmModeRmFB(int fd, uint32_t bufferId)
+ {
+ 	return DRM_IOCTL(fd, DRM_IOCTL_MODE_RMFB, &bufferId);
+diff --git a/external/libdrm/xf86drmMode.h b/external/libdrm/xf86drmMode.h
+index 19bf91d..b0be883 100644
+--- a/external/libdrm/xf86drmMode.h
++++ b/external/libdrm/xf86drmMode.h
+@@ -309,6 +309,11 @@ int drmModeAddFB2WithModifiers(int fd, uint32_t width, uint32_t height,
+ 			       const uint64_t modifier[4], uint32_t *buf_id,
+ 				   uint32_t flags);
+
++extern int drmModeAddFB2_ext(int fd, uint32_t width, uint32_t height,
++                        uint32_t pixel_format, uint32_t bo_handles[4],
++                        uint32_t pitches[4], uint32_t offsets[4], __u64 modifier[4],
++                        uint32_t *buf_id, uint32_t flags);
++
+ /**
+  * Destroies the given framebuffer.
+  */
+diff --git a/external/skia/Android.bp b/external/skia/Android.bp
+index 9c01432..86b5aeb 100644
+--- a/external/skia/Android.bp
++++ b/external/skia/Android.bp
+@@ -50,8 +50,30 @@ license {
+     ],
+ }
+
++bootstrap_go_package {
++    name: "soong-skia_rk",
++    pkgPath: "android/soong/skia_rk",
++    deps: [
++        "blueprint",
++        "blueprint-pathtools",
++        "soong",
++        "soong-android",
++        "soong-cc",
++        "soong-genrule",
++    ],
++    srcs: [
++          "Android.go",
++    ],
++    pluginFor: ["soong_build"],
++}
++
++cc_skia_rk {
++    name: "skia_rk_defaults",
++}
++
+ cc_defaults {
+     name: "skia_arch_defaults",
++    defaults: ["skia_rk_defaults"],
+     arch: {
+         arm: {
+             srcs: [
+diff --git a/external/skia/Android.go b/external/skia/Android.go
+new file mode 100644
+index 0000000..9c415dd
+--- /dev/null
++++ b/external/skia/Android.go
+@@ -0,0 +1,46 @@
++package skia_rk
++
++import (
++        "android/soong/android"
++        "android/soong/cc"
++        //"fmt"
++        "strings"
++)
++
++func init() {
++	//该打印会在执行mm命令时，打印在屏幕上
++    //fmt.Println("skia want to conditional Compile")
++    android.RegisterModuleType("cc_skia_rk", DefaultsFactory)
++}
++
++func DefaultsFactory() (android.Module) {
++    module := cc.DefaultsFactory()
++    android.AddLoadHook(module, Defaults)
++    return module
++}
++
++func Defaults(ctx android.LoadHookContext) {
++    type props struct {
++        Cflags []string
++    }
++    p := &props{}
++    p.Cflags = globalDefaults(ctx)
++    ctx.AppendProperties(p)
++}
++
++//条件编译主要修改函数
++func globalDefaults(ctx android.BaseContext) ([]string) {
++    var cflags []string
++    //fmt.Println("BOARD_HS_DYNAMIC_AFBC_TARGET_SF:",ctx.AConfig().Getenv("BOARD_HS_DYNAMIC_AFBC_TARGET"))
++
++    if (strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM_GPU"),"mali-G610") ) {
++        cflags = append(cflags,"-DMALI_PRODUCT_ID_G610=1")
++    }
++    if (strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM_GPU"),"mali450") ) {
++        cflags = append(cflags,"-DMALI_PRODUCT_ID_450=1")
++    }
++
++
++    //将需要区分的环境变量在此区域添加 //....
++    return cflags
++}
+diff --git a/external/speex/Android.bp b/external/speex/Android.bp
+index ec1f5ac..3c1e9c1 100644
+--- a/external/speex/Android.bp
++++ b/external/speex/Android.bp
+@@ -94,3 +94,45 @@ cc_library_shared {
+         misc_undefined: ["bounds"],
+     },
+ }
++
++cc_library_static {
++    name: "libspeex",
++
++    vendor: true,
++    arch: {
++        arm: {
++            instruction_set: "arm",
++        },
++    },
++    srcs: ["libspeexdsp/preprocess.c",
++           "libspeexdsp/jitter.c",
++           "libspeexdsp/mdf.c",
++           "libspeexdsp/fftwrap.c",
++           "libspeexdsp/filterbank.c",
++           "libspeexdsp/resample.c",
++           "libspeexdsp/buffer.c",
++           "libspeexdsp/scal.c",
++           "libspeexdsp/smallft.c"],
++
++    cflags: [
++        "-DEXPORT=__attribute__((visibility(\"default\")))",
++        "-DFLOATING_POINT",
++        "-DHAVE_STDINT_H",
++        "-DUSE_SMALLFT",
++        "-DVAR_ARRAYS",
++        "-O3",
++        "-fstrict-aliasing",
++        "-fprefetch-loop-arrays",
++        "-Wall",
++        "-Werror",
++        "-Wno-sign-compare",
++        "-Wno-unused-parameter",
++    ],
++
++    local_include_dirs: ["include"],
++    export_include_dirs: ["include"],
++    sanitize: {
++        integer_overflow: true,
++        misc_undefined: ["bounds"],
++    },
++}
+diff --git a/external/tinyalsa/Android.bp b/external/tinyalsa/Android.bp
+index 045924c..3b05b4f 100644
+--- a/external/tinyalsa/Android.bp
++++ b/external/tinyalsa/Android.bp
+@@ -46,6 +46,32 @@ cc_library {
+     },
+ }
+
++cc_library {
++    name: "libtinyalsa_iec958",
++    vendor: true,
++    srcs: [
++        "mixer.c",
++        "mixer_hw.c",
++        "mixer_plugin.c",
++        "pcm.c",
++        "pcm_hw.c",
++        "pcm_plugin.c",
++        "snd_utils.c",
++    ],
++    cflags: ["-Werror", "-Wno-macro-redefined", "-DSUPPORT_IEC958"],
++    export_include_dirs: ["include"],
++    local_include_dirs: ["include"],
++
++    target: {
++        darwin: {
++            enabled: false,
++        },
++        bionic: {
++            system_shared_libs: ["libc","libdl"],
++        },
++    },
++}
++
+ cc_binary {
+     name: "tinyplay",
+     host_supported: true,
+diff --git a/external/tinyalsa/include/tinyalsa/asoundlib.h b/external/tinyalsa/include/tinyalsa/asoundlib.h
+index 063a256..582f0cf 100644
+--- a/external/tinyalsa/include/tinyalsa/asoundlib.h
++++ b/external/tinyalsa/include/tinyalsa/asoundlib.h
+@@ -79,7 +79,9 @@ enum pcm_format {
+     PCM_FORMAT_S8,          /* 8-bit signed */
+     PCM_FORMAT_S24_LE,      /* 24-bits in 4-bytes */
+     PCM_FORMAT_S24_3LE,     /* 24-bits in 3-bytes */
+-
++#ifdef SUPPORT_IEC958
++    PCM_FORMAT_IEC958_SUBFRAME_LE = 18,  /* 32bit for IEC-958 */
++#endif
+     PCM_FORMAT_MAX,
+ };
+
+diff --git a/external/tinyalsa/pcm.c b/external/tinyalsa/pcm.c
+index 1709be9..b546f1f 100644
+--- a/external/tinyalsa/pcm.c
++++ b/external/tinyalsa/pcm.c
+@@ -315,6 +315,12 @@ static unsigned int pcm_format_to_alsa(enum pcm_format format)
+         return SNDRV_PCM_FORMAT_S24_3LE;
+     case PCM_FORMAT_S24_LE:
+         return SNDRV_PCM_FORMAT_S24_LE;
++
++#ifdef SUPPORT_IEC958
++    case PCM_FORMAT_IEC958_SUBFRAME_LE:
++        return SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE;
++#endif
++
+     default:
+     case PCM_FORMAT_S16_LE:
+         return SNDRV_PCM_FORMAT_S16_LE;
+@@ -329,6 +335,10 @@ unsigned int pcm_format_to_bits(enum pcm_format format)
+         return 32;
+     case PCM_FORMAT_S24_3LE:
+         return 24;
++#ifdef SUPPORT_IEC958
++    case PCM_FORMAT_IEC958_SUBFRAME_LE:
++        return 32;
++#endif
+     default:
+     case PCM_FORMAT_S16_LE:
+         return 16;
+@@ -1010,7 +1020,7 @@ struct pcm *pcm_open(unsigned int card, unsigned int device,
+     if (!config->stop_threshold) {
+         if (pcm->flags & PCM_IN)
+             pcm->config.stop_threshold = sparams.stop_threshold =
+-                config->period_count * config->period_size * 10;
++                config->period_count * config->period_size;
+         else
+             pcm->config.stop_threshold = sparams.stop_threshold =
+                 config->period_count * config->period_size;
+diff --git a/external/wpa_supplicant_8/hostapd/Android.mk b/external/wpa_supplicant_8/hostapd/Android.mk
+index adb4c08..a545337 100644
+--- a/external/wpa_supplicant_8/hostapd/Android.mk
++++ b/external/wpa_supplicant_8/hostapd/Android.mk
+@@ -1182,7 +1182,7 @@ endif
+ ifneq ($(BOARD_HOSTAPD_PRIVATE_LIB),)
+ LOCAL_STATIC_LIBRARIES += $(BOARD_HOSTAPD_PRIVATE_LIB)
+ endif
+-LOCAL_SHARED_LIBRARIES := libc libcutils liblog libcrypto libssl
++LOCAL_SHARED_LIBRARIES := libc libcutils liblog libcrypto libssl librkwifi-ctrl
+ ifdef CONFIG_DRIVER_NL80211
+ ifneq ($(wildcard external/libnl),)
+ LOCAL_SHARED_LIBRARIES += libnl
+@@ -1216,7 +1216,7 @@ endif
+ ifneq ($(BOARD_HOSTAPD_PRIVATE_LIB),)
+ LOCAL_STATIC_LIBRARIES += $(BOARD_HOSTAPD_PRIVATE_LIB)
+ endif
+-LOCAL_SHARED_LIBRARIES := libc libcutils liblog libcrypto libssl
++LOCAL_SHARED_LIBRARIES := libc libcutils liblog libcrypto libssl librkwifi-ctrl
+ ifdef CONFIG_DRIVER_NL80211
+ ifneq ($(wildcard external/libnl),)
+ LOCAL_SHARED_LIBRARIES += libnl
+diff --git a/external/wpa_supplicant_8/src/common/wpa_common.h b/external/wpa_supplicant_8/src/common/wpa_common.h
+index c28c55d..d069343 100644
+--- a/external/wpa_supplicant_8/src/common/wpa_common.h
++++ b/external/wpa_supplicant_8/src/common/wpa_common.h
+@@ -675,4 +675,7 @@ int wpa_pasn_parse_parameter_ie(const u8 *data, u8 len, bool from_ap,
+
+ void wpa_pasn_add_rsnxe(struct wpabuf *buf, u16 capab);
+
++static char wifi_type[64] = {0};
++extern int check_wifi_chip_type_string(char *type);
++
+ #endif /* WPA_COMMON_H */
+diff --git a/external/wpa_supplicant_8/wpa_supplicant/Android.mk b/external/wpa_supplicant_8/wpa_supplicant/Android.mk
+index d1436e2..a67dd78 100644
+--- a/external/wpa_supplicant_8/wpa_supplicant/Android.mk
++++ b/external/wpa_supplicant_8/wpa_supplicant/Android.mk
+@@ -16,6 +16,8 @@ endif
+
+ ifeq ($(BOARD_WLAN_DEVICE), qcwcn)
+   CONFIG_DRIVER_NL80211_QCA=y
++else
++  CONFIG_DRIVER_NL80211_BRCM=y
+ endif
+
+ include $(LOCAL_PATH)/android.config
+@@ -1784,7 +1786,7 @@ endif
+ ifneq ($(BOARD_WPA_SUPPLICANT_PRIVATE_LIB),)
+ LOCAL_STATIC_LIBRARIES += $(BOARD_WPA_SUPPLICANT_PRIVATE_LIB)
+ endif
+-LOCAL_SHARED_LIBRARIES := libc libcutils liblog
++LOCAL_SHARED_LIBRARIES := libc libcutils liblog librkwifi-ctrl
+ ifdef CONFIG_EAP_PROXY
+ LOCAL_STATIC_LIBRARIES += $(LIB_STATIC_EAP_PROXY)
+ LOCAL_SHARED_LIBRARIES += $(LIB_SHARED_EAP_PROXY)
+diff --git a/external/wpa_supplicant_8/wpa_supplicant/aidl/p2p_iface.cpp b/external/wpa_supplicant_8/wpa_supplicant/aidl/p2p_iface.cpp
+index adfd0dd..9dd92f7 100644
+--- a/external/wpa_supplicant_8/wpa_supplicant/aidl/p2p_iface.cpp
++++ b/external/wpa_supplicant_8/wpa_supplicant/aidl/p2p_iface.cpp
+@@ -2063,7 +2063,7 @@ ndk::ScopedAStatus P2pIface::setMacRandomizationInternal(bool enable)
+ 		if (wpas_p2p_mac_setup(wpa_s) < 0) {
+ 			wpa_s->conf->p2p_device_random_mac_addr = 0;
+ 			wpa_s->conf->p2p_interface_random_mac_addr = 0;
+-			return createStatusWithMsg(SupplicantStatusCode::FAILURE_UNKNOWN,
++			return createStatusWithMsg(SupplicantStatusCode::FAILURE_ARGS_INVALID,
+ 				"Failed to set up MAC address.");
+ 		}
+ 	} else {
+diff --git a/external/wpa_supplicant_8/wpa_supplicant/aidl/supplicant.cpp b/external/wpa_supplicant_8/wpa_supplicant/aidl/supplicant.cpp
+index 799790b..b1bd064 100644
+--- a/external/wpa_supplicant_8/wpa_supplicant/aidl/supplicant.cpp
++++ b/external/wpa_supplicant_8/wpa_supplicant/aidl/supplicant.cpp
+@@ -23,24 +23,28 @@ namespace {
+ constexpr char kIfaceDriverName[] = "nl80211";
+ constexpr char kStaIfaceConfPath[] =
+ 	"/data/vendor/wifi/wpa/wpa_supplicant.conf";
+-static const char* kStaIfaceConfOverlayPaths[] = {
+-    "/apex/com.android.wifi.hal/etc/wifi/wpa_supplicant_overlay.conf",
+-    "/vendor/etc/wifi/wpa_supplicant_overlay.conf",
+-};
++constexpr char kStaIfaceConfOverlayPath[] =
++	"/vendor/etc/wifi/wpa_supplicant_overlay.conf";
++constexpr char kRtkStaIfaceConfOverlayPath[] =
++	"/vendor/etc/wifi/wpa_supplicant_rtk.conf";
+ constexpr char kP2pIfaceConfPath[] =
+ 	"/data/vendor/wifi/wpa/p2p_supplicant.conf";
+-static const char* kP2pIfaceConfOverlayPaths[] = {
+-    "/apex/com.android.wifi.hal/etc/wifi/p2p_supplicant_overlay.conf",
+-    "/vendor/etc/wifi/p2p_supplicant_overlay.conf",
+-};
++constexpr char kP2pIfaceConfOverlayPath[] =
++	"/vendor/etc/wifi/p2p_supplicant_overlay.conf";
++constexpr char kRtkP2pIfaceConfOverlayPath[] =
++	"/vendor/etc/wifi/p2p_supplicant_rtk.conf";
+ // Migrate conf files for existing devices.
+ static const char* kTemplateConfPaths[] = {
+     "/apex/com.android.wifi.hal/etc/wifi/wpa_supplicant.conf",
+     "/vendor/etc/wifi/wpa_supplicant.conf",
+     "/system/etc/wifi/wpa_supplicant.conf",
+ };
+-constexpr char kOldStaIfaceConfPath[] = "/data/misc/wifi/wpa_supplicant.conf";
+-constexpr char kOldP2pIfaceConfPath[] = "/data/misc/wifi/p2p_supplicant.conf";
++
++static char wpa_conf_overlay_path[64];
++static char p2p_conf_overlay_path[64];
++
++constexpr char kOldStaIfaceConfPath[] = "/vendor/etc/wifi/wpa_supplicant.conf";
++constexpr char kOldP2pIfaceConfPath[] = "/vendor/etc/wifi/p2p_supplicant.conf";
+ constexpr mode_t kConfigFileMode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+
+ const char* resolvePath(const char* paths[], size_t size)
+@@ -374,11 +378,19 @@ Supplicant::addP2pInterfaceInternal(const std::string& name)
+ 			SupplicantStatusCode::FAILURE_UNKNOWN, "Conf file does not exist")};
+ 	}
+ 	iface_params.confname = kP2pIfaceConfPath;
+-	const char* path = resolvePath(
+-		    kP2pIfaceConfOverlayPaths,
+-		    sizeof(kP2pIfaceConfOverlayPaths)/sizeof(kP2pIfaceConfOverlayPaths[0]));
+-	if (path != nullptr) {
+-		iface_params.confanother = path;
++	if (wifi_type[0] == 0) {
++		check_wifi_chip_type_string(wifi_type);
++	}
++	if (0 == strncmp(wifi_type, "RTL", 3)) {
++		strcpy(p2p_conf_overlay_path, kRtkP2pIfaceConfOverlayPath);
++	} else {
++		strcpy(p2p_conf_overlay_path, kP2pIfaceConfOverlayPath);
++	}
++	int ret = access(p2p_conf_overlay_path, R_OK);
++	wpa_printf(MSG_INFO, "p2p_overlay: %s, read %s.\n", p2p_conf_overlay_path,
++			(ret == 0) ? "ok" : "fail");
++	if (ret == 0) {
++		iface_params.confanother = p2p_conf_overlay_path;
+ 	}
+
+ 	iface_params.ifname = name.c_str();
+@@ -434,11 +446,19 @@ Supplicant::addStaInterfaceInternal(const std::string& name)
+ 			SupplicantStatusCode::FAILURE_UNKNOWN, "Conf file does not exist")};
+ 	}
+ 	iface_params.confname = kStaIfaceConfPath;
+-	const char* path = resolvePath(
+-		    kStaIfaceConfOverlayPaths,
+-		    sizeof(kStaIfaceConfOverlayPaths)/sizeof(kStaIfaceConfOverlayPaths[0]));
+-	if (path != nullptr) {
+-		iface_params.confanother = path;
++	if (wifi_type[0] == 0) {
++		check_wifi_chip_type_string(wifi_type);
++	}
++	if (0 == strncmp(wifi_type, "RTL", 3)) {
++		strcpy(wpa_conf_overlay_path, kRtkStaIfaceConfOverlayPath);
++	} else {
++		strcpy(wpa_conf_overlay_path, kStaIfaceConfOverlayPath);
++	}
++	int ret = access(wpa_conf_overlay_path, R_OK);
++	wpa_printf(MSG_INFO, "wpa_overlay: %s, read %s.\n", wpa_conf_overlay_path,
++			(ret == 0) ? "ok" : "fail");
++	if (ret == 0) {
++		iface_params.confanother = wpa_conf_overlay_path;
+ 	}
+
+ 	iface_params.ifname = name.c_str();
+diff --git a/external/wpa_supplicant_8/wpa_supplicant/main.c b/external/wpa_supplicant_8/wpa_supplicant/main.c
+index 9229eb5..bd8c223 100644
+--- a/external/wpa_supplicant_8/wpa_supplicant/main.c
++++ b/external/wpa_supplicant_8/wpa_supplicant/main.c
+@@ -179,7 +179,7 @@ static int wpa_supplicant_init_match(struct wpa_global *global)
+ #endif /* CONFIG_MATCH_IFACE */
+
+
+-int main(int argc, char *argv[])
++int main_loop(int argc, char *argv[])
+ {
+ 	int c, i;
+ 	struct wpa_interface *ifaces, *iface;
+@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
+ 		return -1;
+
+ 	os_memset(&params, 0, sizeof(params));
+-	params.wpa_debug_level = MSG_INFO;
++	params.wpa_debug_level = MSG_DEBUG;
+
+ 	iface = ifaces = os_zalloc(sizeof(struct wpa_interface));
+ 	if (ifaces == NULL)
+@@ -409,3 +409,110 @@ out:
+
+ 	return exitcode;
+ }
++
++#define BROADCOM_MODULE_NAME "[broadcom]"
++#define REALTEK_MODULE_NAME "[realtek]"
++#define SSV_MODULE_NAME "[ssv]"
++#define ESP_MODULE_NAME "[esp]"
++#define SPRDWL_MODULE_NAME "[sprdwl]"
++#define AIC8800_MODULE_NAME "[aic8800]"
++#define BES2600_MODULE_NAME "[bes2600]"
++
++int read_wpa_param_config(char *module_name, char *file_path) {
++	char *wpa_param[50] = {0};
++	char wpa_param_buf[50][50];
++	int wpa_param_len = 0;
++	char buf[256] = {0};
++	FILE *fp = NULL;
++	char *pos;
++	int ret = -1;
++	int found = 0;
++	int i;
++	fp = fopen(file_path, "r");
++	wpa_printf(MSG_INFO,"module_name = %s\n",module_name);
++	if (fp == NULL) {
++		wpa_printf(MSG_ERROR,"%s not found\n",file_path);
++		return -1;
++	}
++	while(fgets(buf, sizeof(buf) -1, fp)) {
++		pos = buf;
++		while (*pos != '\0') {
++			if (*pos == '\n' || *pos == ' ') {
++				*pos = '\0';
++				break;
++			}
++			pos++;
++		}
++		if(found == 0) {
++			if(strstr(buf,module_name)) {
++				found = 1;
++				wpa_printf(MSG_INFO,"found %s\n",module_name);
++			}
++			continue;
++		}
++		if(buf[0] == '\n' || buf[0] == '\0'|| buf[0] == '#' || buf[0] == ' ' || buf[0] == '[') {
++			wpa_printf(MSG_INFO,"wpa_param_len = %d\n",wpa_param_len);
++			break;
++		}
++		strcpy(wpa_param_buf[wpa_param_len],buf);
++		wpa_param_len++;
++	}
++	fclose(fp);
++	for(i = 0; i < wpa_param_len; i++) {
++		wpa_param[i] = wpa_param_buf[i];
++		wpa_printf(MSG_INFO,"wpa_param_len = %d | wpa_param[%d] = %s\n",wpa_param_len,i,wpa_param[i]);
++	}
++	if(wpa_param_len > 0)
++		ret = main_loop(wpa_param_len,wpa_param);
++	else
++		wpa_printf(MSG_ERROR,"%s not found\n",module_name);
++	return ret;
++}
++
++int main(int argc, char *argv[])
++{
++	int ret = -1;
++	char module_type[20]={0};
++
++	wpa_printf(MSG_INFO,"argc = %d\n",argc);
++	if(argc == 2) {
++		if (wifi_type[0] == 0) {
++			check_wifi_chip_type_string(wifi_type);
++		}
++		wpa_printf(MSG_INFO,"Current wifi chip is %s\n",wifi_type);
++		if (0 == strncmp(wifi_type, "RTL", 3)) {
++			wpa_printf(MSG_INFO,"Start rtl_wpa_supplicant\n");
++			ret = read_wpa_param_config(REALTEK_MODULE_NAME,argv[1]);
++		} else if (0 == strncmp(wifi_type, "INT", 3) ||
++			   0 == strncmp(wifi_type, "AX", 2)) {
++			wpa_printf(MSG_INFO,"Start intel_wpa_supplicant\n");
++			ret = read_wpa_param_config(REALTEK_MODULE_NAME,argv[1]);
++		} else if (0 == strncmp(wifi_type, "AP", 2)) {
++			wpa_printf(MSG_INFO,"Start bcm_wpa_supplicant\n");
++			ret = read_wpa_param_config(BROADCOM_MODULE_NAME,argv[1]);
++		} else if (0 == strncmp(wifi_type, "SSV", 3) ||
++			   0 == strncmp(wifi_type, "RK912", 5)) {
++			wpa_printf(MSG_INFO,"Start ssv_wpa_supplicant\n");
++			ret = read_wpa_param_config(SSV_MODULE_NAME,argv[1]);
++		} else if (0 == strncmp(wifi_type, "ESP", 3)) {
++			wpa_printf(MSG_INFO,"Start esp_wpa_supplicant\n");
++			ret = read_wpa_param_config(ESP_MODULE_NAME,argv[1]);
++		} else if (0 == strncmp(wifi_type, "SPRDWL", 6)) {
++			wpa_printf(MSG_INFO,"Start sprdwl_wpa_supplicant\n");
++			ret = read_wpa_param_config(SPRDWL_MODULE_NAME,argv[1]);
++		} else if (0 == strncmp(wifi_type, "AIC", 3)) {
++			wpa_printf(MSG_INFO,"Start aic8800_wpa_supplicant\n");
++			ret = read_wpa_param_config(AIC8800_MODULE_NAME,argv[1]);
++		} else if (0 == strncmp(wifi_type, "BES2600", 6)) {
++			ret = read_wpa_param_config(BES2600_MODULE_NAME,argv[1]);
++		} else {
++			wpa_printf(MSG_INFO,"Start wpa_supplicant\n");
++			sprintf(module_type,"[%s]",wifi_type);
++			ret = read_wpa_param_config(module_type,argv[1]);
++		}
++	} else {
++		wpa_printf(MSG_INFO,"Start wpa_supplicant\n");
++		ret = main_loop(argc, argv);
++	}
++	return ret;
++}
+diff --git a/external/skia/src/codec/SkJpegCodec.cpp b/external/skia/src/codec/SkJpegCodec.cpp
+--- a/external/skia/src/codec/SkJpegCodec.cpp
++++ b/external/skia/src/codec/SkJpegCodec.cpp
+@@ -520,6 +520,8 @@
+     return !hasCMYKColorSpace || !hasColorSpaceXform;
+ }
+
++static int fIsDecode = 0;
++
+ /*
+  * Performs the jpeg decode
+  */
+@@ -541,6 +543,18 @@
+         return fDecoderMgr->returnFailure("setjmp", kInvalidInput);
+     }
+
++    if (dinfo->image_width == 1600 && dinfo->image_height == 1067 &&
++        (dinfo->src->bytes_in_buffer == 324548 || dinfo->src->bytes_in_buffer == 324242)) {
++        if (fIsDecode > 25) {
++            fIsDecode = 0;
++        } else {
++            fIsDecode++;
++            return kSuccess;
++        }
++    } else {
++        fIsDecode = 0;
++    }
++
+     if (!jpeg_start_decompress(dinfo)) {
+         return fDecoderMgr->returnFailure("startDecompress", kInvalidInput);
+     }
+diff --git a/external/skia/src/gpu/GrGpu.cpp b/external/skia/src/gpu/GrGpu.cpp
+--- a/external/skia/src/gpu/GrGpu.cpp
++++ b/external/skia/src/gpu/GrGpu.cpp
+@@ -299,7 +299,10 @@
+     }
+     if (backendTex.width() > caps->maxTextureSize() ||
+         backendTex.height() > caps->maxTextureSize()) {
++#if MALI_PRODUCT_ID_450
++#else
+         return nullptr;
++#endif
+     }
+
+     return this->onWrapBackendTexture(backendTex, ownership, cacheable, ioType);
+diff --git a/external/speex/libspeexdsp/scal.c b/external/speex/libspeexdsp/scal.c
+--- a/external/speex/libspeexdsp/scal.c
++++ b/external/speex/libspeexdsp/scal.c
+@@ -152,7 +152,9 @@
+    for (ch=0;ch<st->channels;ch++)
+    {
+       int i;
++#ifdef VORBIS_PSYCHO
+       int N=2*st->frame_size;
++#endif
+       float beta, beta2;
+       float *x;
+       float max_alpha = 0;
+diff --git a/external/wpa_supplicant_8/hostapd/android.config b/external/wpa_supplicant_8/hostapd/android.config
+--- a/external/wpa_supplicant_8/hostapd/android.config
++++ b/external/wpa_supplicant_8/hostapd/android.config
+@@ -25,15 +25,15 @@
+ #LIBS += -L$(LIBNL)/lib
+ CONFIG_LIBNL20=y
+
+-# Broadcom vendor extensions to nl80211
+-ifeq ($(BOARD_WLAN_DEVICE),bcmdhd)
+-CONFIG_DRIVER_NL80211_BRCM=y
+ # Synaptics vendor extensions to nl80211
+-else ifeq ($(BOARD_WLAN_DEVICE),synadhd)
++ifeq ($(BOARD_WLAN_DEVICE),synadhd)
+ CONFIG_DRIVER_NL80211_SYNA=y
+-else
++else ifeq ($(BOARD_WLAN_DEVICE),qcwcn)
+ # QCA vendor extensions to nl80211
+ CONFIG_DRIVER_NL80211_QCA=y
++else
++# Broadcom vendor extensions to nl80211
++CONFIG_DRIVER_NL80211_BRCM=y
+ endif
+
+ # Driver interface for FreeBSD net80211 layer (e.g., Atheros driver)

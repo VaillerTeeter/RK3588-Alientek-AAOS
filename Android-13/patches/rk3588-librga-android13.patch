@@ -1,0 +1,11 @@
+--- a/hardware/rockchip/librga/include/drmrga.h
++++ b/hardware/rockchip/librga/include/drmrga.h
+@@ -33,7 +33,7 @@
+ #include <system/graphics.h>
+ #include <cutils/native_handle.h>
+ 
+-#if defined(ANDROID_12) || defined(USE_HARDWARE_ROCKCHIP)
++#if defined(ANDROID_13) || defined(USE_HARDWARE_ROCKCHIP)
+ #include <hardware/hardware_rockchip.h>
+ #endif
+ 

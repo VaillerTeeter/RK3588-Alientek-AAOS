@@ -1,0 +1,606 @@
+diff --git a/build/make/core/Makefile b/build/make/core/Makefile
+index 72aa890..74cec73 100644
+--- a/build/make/core/Makefile
++++ b/build/make/core/Makefile
+@@ -55,7 +55,7 @@ endef
+ .PHONY: check-elf-prebuilt-product-copy-files
+ check-elf-prebuilt-product-copy-files:
+
+-check_elf_prebuilt_product_copy_files := true
++check_elf_prebuilt_product_copy_files :=
+ ifneq (,$(filter true,$(BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES)))
+ check_elf_prebuilt_product_copy_files :=
+ endif
+@@ -846,10 +846,6 @@
+ # dtb
+ ifdef BOARD_INCLUDE_DTB_IN_BOOTIMG
+ INSTALLED_DTBIMAGE_TARGET := $(PRODUCT_OUT)/dtb.img
+-ifdef BOARD_PREBUILT_DTBIMAGE_DIR
+-$(INSTALLED_DTBIMAGE_TARGET) : $(sort $(wildcard $(BOARD_PREBUILT_DTBIMAGE_DIR)/*.dtb))
+-	cat $^ > $@
+-endif
+ endif
+
+ # -----------------------------------------------------------------
+@@ -968,15 +964,11 @@ ifneq ($(strip $(TARGET_NO_KERNEL)),true)
+ INTERNAL_BOOTIMAGE_ARGS := \
+ 	$(addprefix --second ,$(INSTALLED_2NDBOOTLOADER_TARGET))
+
+-INTERNAL_INIT_BOOT_IMAGE_ARGS :=
+-
+ # TODO(b/229701033): clean up BOARD_BUILD_GKI_BOOT_IMAGE_WITHOUT_RAMDISK.
+ ifneq ($(BOARD_BUILD_GKI_BOOT_IMAGE_WITHOUT_RAMDISK),true)
+   ifneq ($(BOARD_BUILD_SYSTEM_ROOT_IMAGE),true)
+     ifneq ($(BUILDING_INIT_BOOT_IMAGE),true)
+       INTERNAL_BOOTIMAGE_ARGS += --ramdisk $(INSTALLED_RAMDISK_TARGET)
+-    else
+-      INTERNAL_INIT_BOOT_IMAGE_ARGS += --ramdisk $(INSTALLED_RAMDISK_TARGET)
+     endif
+   endif
+ endif
+@@ -1223,6 +1215,8 @@ ifeq ($(BUILDING_INIT_BOOT_IMAGE),true)
+ INSTALLED_INIT_BOOT_IMAGE_TARGET := $(PRODUCT_OUT)/init_boot.img
+ $(INSTALLED_INIT_BOOT_IMAGE_TARGET): $(MKBOOTIMG) $(INSTALLED_RAMDISK_TARGET)
+
++INTERNAL_INIT_BOOT_IMAGE_ARGS := --ramdisk $(INSTALLED_RAMDISK_TARGET)
++
+ ifdef BOARD_KERNEL_PAGESIZE
+   INTERNAL_INIT_BOOT_IMAGE_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
+ endif
+@@ -1505,6 +1499,15 @@ endif # BUILDING_VENDOR_KERNEL_BOOT_IMAGE
+ # This needs to be before the systemimage rules, because it adds to
+ # ALL_DEFAULT_INSTALLED_MODULES, which those use to pick which files
+ # go into the systemimage.
++INSTALLED_LOADER_TARGET := $(strip $(wildcard $(TARGET_DEVICE_DIR)/ota/loader/RK*Loader*.bin))
++
++INSTALLED_UBOOT_TARGET := $(strip $(wildcard u-boot/uboot.img))
++HAVE_TRUST_WITH_TA := $(shell test -f u-boot/trust_with_ta.img && echo yes)
++ifeq ($(HAVE_TRUST_WITH_TA),yes)
++INSTALLED_TRUST_TARGET := $(strip $(wildcard u-boot/trust_with_ta.img))
++else
++INSTALLED_TRUST_TARGET := $(strip $(wildcard u-boot/trust.img))
++endif
+
+ .PHONY: notice_files
+
+@@ -4025,6 +4028,30 @@ $(strip $(foreach item,$(1),\
+       $(INSTALLED_$(call to-upper,$(item))IMAGE_TARGET)))))
+ endef
+
++# -----------------------------------------------------------------
++# resource images
++ifdef TARGET_PREBUILT_RESOURCE
++INSTALLED_RESOURCEIMAGE_TARGET := $(PRODUCT_OUT)/resource.img
++
++ifeq ($(BOARD_AVB_ENABLE),true)
++$(INSTALLED_RESOURCEIMAGE_TARGET): $(TARGET_PREBUILT_RESOURCE) $(AVBTOOL) $(BOARD_AVB_RESOURCE_KEY_PATH)
++	cp $(TARGET_PREBUILT_RESOURCE) $@
++	$(AVBTOOL) add_hash_footer \
++	    --image $@ \
++	    $(call get-partition-size-argument,$(BOARD_RESOURCEIMG_PARTITION_SIZE)) \
++	    --partition_name resource $(INTERNAL_AVB_RESOURCE_SIGNING_ARGS) \
++	    $(BOARD_AVB_RESOURCE_ADD_HASH_FOOTER_ARGS)
++
++$(call declare-1p-container,$(INSTALLED_RESOURCEIMAGE_TARGET),)
++$(call declare-container-license-deps,$(INSTALLED_RESOURCEIMAGE_TARGET),$(TARGET_PREBUILT_RESOURCE),$(PRODUCT_OUT)/:/)
++
++UNMOUNTED_NOTICE_DEPS += $(INSTALLED_RESOURCEIMAGE_TARGET)
++else
++$(INSTALLED_RESOURCEIMAGE_TARGET): $(TARGET_PREBUILT_RESOURCE)
++	cp $(TARGET_PREBUILT_RESOURCE) $@
++endif
++endif # TARGET_PREBUILT_RESOURCE
++
+ # -----------------------------------------------------------------
+ # custom images
+ INSTALLED_CUSTOMIMAGES_TARGET :=
+@@ -4413,6 +4440,10 @@ $(foreach partition,$(BOARD_CUSTOMIMAGES_PARTITION_LIST), \
+     $(eval $(call check-and-set-custom-avb-chain-args,$(partition))))
+ endif
+
++ifdef TARGET_PREBUILT_RESOURCE
++$(eval $(call check-and-set-avb-args,resource))
++endif
++
+ # Add kernel cmdline descriptor for kernel to mount system.img as root with
+ # dm-verity. This works when system.img is either chained or not-chained:
+ # - chained: The --setup_as_rootfs_from_kernel option will add dm-verity kernel
+@@ -4505,6 +4536,9 @@ define extract-avb-chain-public-keys
+     $(hide) $(foreach partition,$(BOARD_CUSTOMIMAGES_PARTITION_LIST), \
+         $(AVBTOOL) extract_public_key --key $(BOARD_AVB_$(call to-upper,$(partition))_KEY_PATH) \
+             --output $(1)/$(partition).avbpubkey;))
++  $(if $(BOARD_AVB_RESOURCE_KEY_PATH),\
++    $(hide) $(AVBTOOL) extract_public_key --key $(BOARD_AVB_RESOURCE_KEY_PATH) \
++        --output $(1)/resource.avbpubkey)
+ endef
+
+ # Builds a chained VBMeta image. This VBMeta image will contain the descriptors for the partitions
+@@ -4587,6 +4621,7 @@ $(INSTALLED_VBMETAIMAGE_TARGET): \
+ 	    $(INSTALLED_DTBOIMAGE_TARGET) \
+ 	    $(INSTALLED_PVMFWIMAGE_TARGET) \
+ 	    $(INSTALLED_CUSTOMIMAGES_TARGET) \
++	    $(INSTALLED_RESOURCEIMAGE_TARGET) \
+ 	    $(INSTALLED_RECOVERYIMAGE_TARGET) \
+ 	    $(INSTALLED_VBMETA_SYSTEMIMAGE_TARGET) \
+ 	    $(INSTALLED_VBMETA_VENDORIMAGE_TARGET) \
+@@ -5289,6 +5324,14 @@ ifneq (,$(strip $(BOARD_CUSTOMIMAGES_PARTITION_LIST)))
+ 	    echo "avb_$(partition)_partition_size=$(BOARD_AVB_$(call to-upper,$(partition))_PARTITION_SIZE)"  >> $@; \
+ 	    echo "avb_$(partition)_image_list=$(foreach image,$(BOARD_AVB_$(call to-upper,$(partition))_IMAGE_LIST),$(notdir $(image)))" >> $@;)
+ endif # BOARD_CUSTOMIMAGES_PARTITION_LIST
++ifdef TARGET_PREBUILT_RESOURCE
++	$(hide) echo "avb_resource_add_hash_footer_args=$(BOARD_AVB_RESOURCE_ADD_HASH_FOOTER_ARGS)" >> $@
++ifdef BOARD_AVB_RESOURCE_KEY_PATH
++	$(hide) echo "avb_resource_key_path=$(BOARD_AVB_RESOURCE_KEY_PATH)" >> $@
++	$(hide) echo "avb_resource_algorithm=$(BOARD_AVB_RESOURCE_ALGORITHM)" >> $@
++	$(hide) echo "avb_resource_rollback_index_location=$(BOARD_AVB_RESOURCE_ROLLBACK_INDEX_LOCATION)" >> $@
++endif # BOARD_AVB_RESOURCE_KEY_PATH
++endif # TARGET_PREBUILT_RESOURCE
+ ifneq (,$(strip $(BOARD_AVB_VBMETA_SYSTEM)))
+ 	$(hide) echo "avb_vbmeta_system=$(BOARD_AVB_VBMETA_SYSTEM)" >> $@
+ 	$(hide) echo "avb_vbmeta_system_args=$(BOARD_AVB_MAKE_VBMETA_SYSTEM_IMAGE_ARGS)" >> $@
+@@ -5371,6 +5414,8 @@ endif
+ ifneq ($(BOARD_PARTIAL_OTA_UPDATE_PARTITIONS_LIST),)
+ 	$(hide) echo "partial_ota_update_partitions_list=$(BOARD_PARTIAL_OTA_UPDATE_PARTITIONS_LIST)" >> $@
+ endif
++	$(hide) echo "booot_header_version=$(BOARD_BOOT_HEADER_VERSION)" >> $@
++
+ ifeq ($(BUILDING_WITH_VSDK),true)
+ 	$(hide) echo "building_with_vsdk=true" >> $@
+ endif
+@@ -5675,6 +5720,7 @@ $(BUILT_TARGET_FILES_PACKAGE): \
+ 	    $(INSTALLED_PVMFWIMAGE_TARGET) \
+ 	    $(INSTALLED_PVMFW_EMBEDDED_AVBKEY_TARGET) \
+ 	    $(INSTALLED_CUSTOMIMAGES_TARGET) \
++	    $(INSTALLED_RESOURCEIMAGE_TARGET) \
+ 	    $(INSTALLED_ANDROID_INFO_TXT_TARGET) \
+ 	    $(INSTALLED_KERNEL_TARGET) \
+ 	    $(INSTALLED_RAMDISK_TARGET) \
+@@ -5914,6 +5960,44 @@ endif
+ 	$(hide) echo "$(PRODUCT_OTA_PUBLIC_KEYS)" > $(zip_root)/META/otakeys.txt
+ 	$(hide) cp $(SELINUX_FC) $(zip_root)/META/file_contexts.bin
+ 	$(hide) cp $(INSTALLED_MISC_INFO_TARGET) $(zip_root)/META/misc_info.txt
++ifeq ($(INSTALLED_LOADER_TARGET),)
++	$(info No RK Loader for TARGET_DEVICE $(TARGET_DEVICE) to otapackage)
++else
++	$(info cp RK Loader:$(TARGET_DEVICE) to otapackage)
++	$(hide) cp $(INSTALLED_LOADER_TARGET) $(zip_root)/RKLoader.bin
++endif
++ifeq ($(INSTALLED_UBOOT_TARGET),)
++	$(info No uboot for uboot/uboot.img to otapackage)
++else
++ifeq ($(AB_OTA_UPDATER),true)
++	$(hide) mkdir -p $(zip_root)/IMAGES
++	$(hide) cp $(INSTALLED_UBOOT_TARGET) $(zip_root)/IMAGES/uboot.img
++else
++	$(hide) cp $(INSTALLED_UBOOT_TARGET) $(zip_root)/uboot.img
++endif
++endif
++ifeq ($(INSTALLED_TRUST_TARGET),)
++	$(info No trust for uboot/trust.img to otapackage)
++else
++ifeq ($(AB_OTA_UPDATER),true)
++	$(hide) mkdir -p $(zip_root)/IMAGES
++	$(hide) cp $(INSTALLED_TRUST_TARGET) $(zip_root)/IMAGES/trust.img
++else
++	$(hide) cp $(INSTALLED_TRUST_TARGET) $(zip_root)/trust.img
++endif
++endif
++ifdef TARGET_PREBUILT_RESOURCE
++	$(info package add resource.img to BOOT and RECOVERY)
++	$(hide) cp $(TARGET_PREBUILT_RESOURCE) $(zip_root)/BOOT/resource.img
++ifneq ($(TARGET_NO_RECOVERY),true)
++	$(hide) cp $(TARGET_PREBUILT_RESOURCE) $(zip_root)/RECOVERY/resource.img
++endif
++ifeq (1,$(strip $(shell expr $(BOARD_BOOT_HEADER_VERSION) \>= 3)))
++	$(hide) mkdir -p $(zip_root)/IMAGES
++	$(hide) cp $(TARGET_PREBUILT_RESOURCE) $(zip_root)/IMAGES/resource.img
++endif
++endif
++
+ ifneq ($(PRODUCT_SYSTEM_BASE_FS_PATH),)
+ 	$(hide) cp $(PRODUCT_SYSTEM_BASE_FS_PATH) \
+ 	  $(zip_root)/META/$(notdir $(PRODUCT_SYSTEM_BASE_FS_PATH))
+@@ -6035,6 +6119,10 @@ ifneq ($(strip $(BOARD_CUSTOMIMAGES_PARTITION_LIST)),)
+ 	$(hide) $(foreach partition,$(BOARD_CUSTOMIMAGES_PARTITION_LIST), \
+ 	    $(foreach image,$(BOARD_AVB_$(call to-upper,$(partition))_IMAGE_LIST),cp $(image) $(zip_root)/PREBUILT_IMAGES/;))
+ endif # BOARD_CUSTOMIMAGES_PARTITION_LIST
++ifdef TARGET_PREBUILT_RESOURCE
++	$(hide) mkdir -p $(zip_root)/PREBUILT_IMAGES
++	$(hide) cp $(INSTALLED_RESOURCEIMAGE_TARGET) $(zip_root)/PREBUILT_IMAGES/
++endif # BOARD_RESOURCEIMAGES_PARTITION_LIST
+ 	@# The radio images in BOARD_PACK_RADIOIMAGES will be additionally copied from RADIO/ into
+ 	@# IMAGES/, which then will be added into <product>-img.zip. Such images must be listed in
+ 	@# INSTALLED_RADIOIMAGE_TARGET.
+@@ -6126,6 +6214,7 @@ $(call declare-container-license-deps,$(BUILT_TARGET_FILES_PACKAGE), $(INSTALLED
+             $(INSTALLED_PVMFWIMAGE_TARGET) \
+             $(INSTALLED_PVMFW_EMBEDDED_AVBKEY_TARGET) \
+             $(INSTALLED_CUSTOMIMAGES_TARGET) \
++            $(INSTALLED_RESOURCEIMAGE_TARGET) \
+             $(INSTALLED_ANDROID_INFO_TXT_TARGET) \
+             $(INSTALLED_KERNEL_TARGET) \
+             $(INSTALLED_RAMDISK_TARGET) \
+diff --git a/build/make/core/main.mk b/build/make/core/main.mk
+index c63c6df..a44477c 100644
+--- a/build/make/core/main.mk
++++ b/build/make/core/main.mk
+@@ -16,6 +16,9 @@ PWD := $(shell pwd)
+ DEFAULT_GOAL := droid
+ $(DEFAULT_GOAL): droid_targets
+
++# Include prebuild.mk
++-include device/rockchip/common/prebuild.mk
++
+ .PHONY: droid_targets
+ droid_targets:
+
+@@ -40,6 +43,15 @@ include $(BUILD_SYSTEM)/clang/config.mk
+ # Write the build number to a file so it can be read back in
+ # without changing the command line every time.  Avoids rebuilds
+ # when using ninja.
++ifdef ROCKCHIP_BUILD_NUMBER
++$(shell mkdir -p $(SOONG_OUT_DIR) && \
++    echo -n $(ROCKCHIP_BUILD_NUMBER) > $(SOONG_OUT_DIR)/build_number.tmp; \
++    if ! cmp -s $(SOONG_OUT_DIR)/build_number.tmp $(SOONG_OUT_DIR)/build_number.txt; then \
++        mv $(SOONG_OUT_DIR)/build_number.tmp $(SOONG_OUT_DIR)/build_number.txt; \
++    else \
++        rm $(SOONG_OUT_DIR)/build_number.tmp; \
++    fi)
++else
+ $(shell mkdir -p $(SOONG_OUT_DIR) && \
+     echo -n $(BUILD_NUMBER) > $(SOONG_OUT_DIR)/build_number.tmp; \
+     if ! cmp -s $(SOONG_OUT_DIR)/build_number.tmp $(SOONG_OUT_DIR)/build_number.txt; then \
+@@ -47,6 +59,7 @@ $(shell mkdir -p $(SOONG_OUT_DIR) && \
+     else \
+         rm $(SOONG_OUT_DIR)/build_number.tmp; \
+     fi)
++endif
+ BUILD_NUMBER_FILE := $(SOONG_OUT_DIR)/build_number.txt
+ .KATI_READONLY := BUILD_NUMBER_FILE
+ $(KATI_obsolete_var BUILD_NUMBER,See https://android.googlesource.com/platform/build/+/master/Changes.md#BUILD_NUMBER)
+@@ -62,7 +75,11 @@ ifeq ($(strip $(HAS_BUILD_NUMBER)),false)
+   # it will change every time.  Pick a stable value.
+   FILE_NAME_TAG := eng.$(BUILD_USERNAME)
+ else
+-  FILE_NAME_TAG := $(file <$(BUILD_NUMBER_FILE))
++  ifdef ROCKCHIP_BUILD_NUMBER
++    FILE_NAME_TAG := $(ROCKCHIP_BUILD_NUMBER)
++  else
++    FILE_NAME_TAG := $(file <$(BUILD_NUMBER_FILE))
++  endif
+ endif
+ .KATI_READONLY := FILE_NAME_TAG
+
+diff --git a/build/make/core/sysprop.mk b/build/make/core/sysprop.mk
+index 570702a..b491146 100644
+--- a/build/make/core/sysprop.mk
++++ b/build/make/core/sysprop.mk
+@@ -161,16 +161,28 @@ BUILD_KEYS := test-keys
+ else
+ BUILD_KEYS := dev-keys
+ endif
++
++# For user fingerprint
++ifeq ($(TARGET_BUILD_VARIANT),eng)
++BUILD_KEYS := test-keys
++else
++BUILD_KEYS := release-keys
++endif
++
+ BUILD_VERSION_TAGS += $(BUILD_KEYS)
+ BUILD_VERSION_TAGS := $(subst $(space),$(comma),$(sort $(BUILD_VERSION_TAGS)))
+
+ # BUILD_FINGERPRINT is used used to uniquely identify the combined build and
+ # product; used by the OTA server.
+ ifeq (,$(strip $(BUILD_FINGERPRINT)))
+-  ifeq ($(strip $(HAS_BUILD_NUMBER)),false)
+-    BF_BUILD_NUMBER := $(BUILD_USERNAME)$$($(DATE_FROM_FILE) +%m%d%H%M)
++  ifdef ROCKCHIP_BUILD_NUMBER
++    BF_BUILD_NUMBER := $(ROCKCHIP_BUILD_NUMBER)
+   else
+-    BF_BUILD_NUMBER := $(file <$(BUILD_NUMBER_FILE))
++    ifeq ($(strip $(HAS_BUILD_NUMBER)),false)
++      BF_BUILD_NUMBER := $(BUILD_USERNAME)$$($(DATE_FROM_FILE) +%m%d%H%M)
++    else
++      BF_BUILD_NUMBER := $(file <$(BUILD_NUMBER_FILE))
++    endif
+   endif
+   BUILD_FINGERPRINT := $(PRODUCT_BRAND)/$(TARGET_PRODUCT)/$(TARGET_DEVICE):$(PLATFORM_VERSION)/$(BUILD_ID)/$(BF_BUILD_NUMBER):$(TARGET_BUILD_VARIANT)/$(BUILD_VERSION_TAGS)
+ endif
+diff --git a/build/make/core/version_util.mk b/build/make/core/version_util.mk
+index 3a0d4b5..b68b766 100644
+--- a/build/make/core/version_util.mk
++++ b/build/make/core/version_util.mk
+@@ -234,6 +234,9 @@ DATE := date -d @$(BUILD_DATETIME)
+ $(KATI_obsolete_var BUILD_DATETIME,Use BUILD_DATETIME_FROM_FILE)
+
+ HAS_BUILD_NUMBER := true
++ifdef ROCKCHIP_BUILD_NUMBER
++  BUILD_NUMBER := $(ROCKCHIP_BUILD_NUMBER)
++endif
+ ifndef BUILD_NUMBER
+   # BUILD_NUMBER should be set to the source control value that
+   # represents the current state of the source code.  E.g., a
+diff --git a/build/make/envsetup.sh b/build/make/envsetup.sh
+index be6061d..5feca04 100644
+--- a/build/make/envsetup.sh
++++ b/build/make/envsetup.sh
+@@ -323,6 +323,24 @@ function setpaths()
+     unset ANDROID_TARGET_OUT_TESTCASES
+     export ANDROID_TARGET_OUT_TESTCASES=$(get_abs_build_var TARGET_OUT_TESTCASES)
+
++    unset TARGET_BOARD_PLATFORM
++    export TARGET_BOARD_PLATFORM=$(get_build_var TARGET_BOARD_PLATFORM)
++
++    unset TARGET_BOARD_PLATFORM_GPU
++    export TARGET_BOARD_PLATFORM_GPU=$(get_build_var TARGET_BOARD_PLATFORM_GPU)
++
++    unset BOARD_HS_DYNAMIC_AFBC_TARGET
++    export BOARD_HS_DYNAMIC_AFBC_TARGET=$(get_build_var BOARD_HS_DYNAMIC_AFBC_TARGET)
++
++    unset TARGET_RK_GRALLOC_VERSION
++    export TARGET_RK_GRALLOC_VERSION=$(get_build_var TARGET_RK_GRALLOC_VERSION)
++
++    unset BOARD_SUPPORT_MULTIAUDIO
++    export BOARD_SUPPORT_MULTIAUDIO=$(get_build_var BOARD_SUPPORT_MULTIAUDIO)
++
++    unset TARGET_BOARD_PLATFORM_EBOOK
++    export TARGET_BOARD_PLATFORM_EBOOK=$(get_build_var BUILD_WITH_RK_EBOOK)
++
+     # needed for building linux on MacOS
+     # TODO: fix the path
+     #export HOST_EXTRACFLAGS="-I "$T/system/kernel_headers/host_include
+diff --git a/build/make/tools/releasetools/common.py b/build/make/tools/releasetools/common.py
+index ec49b0d..423b26c 100644
+--- a/build/make/tools/releasetools/common.py
++++ b/build/make/tools/releasetools/common.py
+@@ -1589,7 +1589,15 @@ def _BuildBootableImage(image_name, sourcedir, fs_config_file, info_dict=None,
+   if kernel_path is not None:
+     cmd.extend(["--kernel", kernel_path])
+
+-  fn = os.path.join(sourcedir, "second")
++  if partition_name == "recovery":
++    fn = os.path.join(sourcedir, "resource.img")
++  else:
++    header_version = info_dict.get("booot_header_version")
++    header_version = int(header_version)
++    if header_version < 3:
++      fn = os.path.join(sourcedir, "resource.img")
++    else:
++      fn = os.path.join(sourcedir, "second")
+   if os.access(fn, os.F_OK):
+     cmd.append("--second")
+     cmd.append(fn)
+@@ -3017,7 +3025,7 @@ DIFF_PROGRAM_BY_EXT = {
+     ".zip": ["imgdiff", "-z"],
+     ".jar": ["imgdiff", "-z"],
+     ".apk": ["imgdiff", "-z"],
+-    ".img": "imgdiff",
++    ".img": "bsdiff",
+ }
+
+
+diff --git a/build/make/tools/releasetools/edify_generator.py b/build/make/tools/releasetools/edify_generator.py
+index 033c02e..13919e8 100644
+--- a/build/make/tools/releasetools/edify_generator.py
++++ b/build/make/tools/releasetools/edify_generator.py
+@@ -403,6 +403,11 @@ class EdifyGenerator(object):
+         raise ValueError(
+             "don't know how to write \"%s\" partitions" % p.fs_type)
+
++  def WriteRawLoaderImage(self):
++    """update loader"""
++    self.script.append('package_extract_file("RKLoader.bin", "/tmp/RKLoader.bin");')
++    self.script.append('write_raw_loader_image() || abort("update loader failed.");')
++
+   def AppendExtra(self, extra):
+     """Append text verbatim to the output script."""
+     self.script.append(extra)
+diff --git a/build/make/tools/releasetools/package_loader_zip.py b/build/make/tools/releasetools/package_loader_zip.py
+new file mode 100755
+index 0000000..af8fa16
+--- /dev/null
++++ b/build/make/tools/releasetools/package_loader_zip.py
+@@ -0,0 +1,20 @@
++import sys
++import  os
++import zipfile
++
++def pack_loader():
++    if (len(sys.argv) != 3) :
++        print("Usage: package_loader_zip.py [RKLoader.bin] [update_unsign.zip]")
++        return
++    if ((sys.argv[1] == "-h") or (sys.argv[1] == "--h")):
++        print("Usage: package_loader_zip.py [RKLoader.bin] [update_unsign.zip]")
++        return
++    print("arvg[1]=%s argv[2]=%s \n" % (sys.argv[1], sys.argv[2]))
++    output_zip = zipfile.ZipFile(sys.argv[2], "w", compression=zipfile.ZIP_DEFLATED)
++    output_zip.write(sys.argv[1],"RKLoader.bin")
++    output_zip.close()
++    print("Success!")
++
++
++if __name__ == '__main__':
++    pack_loader()
+diff --git a/build/soong/apex/apex_test.go b/build/soong/apex/apex_test.go
+index 0351cb8..36d5306 100644
+--- a/build/soong/apex/apex_test.go
++++ b/build/soong/apex/apex_test.go
+@@ -7264,6 +7264,28 @@ func TestAppSetBundlePrebuilt(t *testing.T) {
+ 	android.AssertStringEquals(t, "myapex input", extractorOutput, copiedApex.Input.String())
+ }
+
++func TestApexSetApksModuleAssignment(t *testing.T) {
++	ctx := testApex(t, `
++		apex_set {
++			name: "myapex",
++			set: ":myapex_apks_file",
++		}
++
++		filegroup {
++			name: "myapex_apks_file",
++			srcs: ["myapex.apks"],
++		}
++	`)
++
++	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
++
++	// Check that the extractor produces the correct apks file from the input module
++	extractorOutput := "out/soong/.intermediates/myapex.apex.extractor/android_common/extracted/myapex.apks"
++	extractedApex := m.Output(extractorOutput)
++
++	android.AssertArrayString(t, "extractor input", []string{"myapex.apks"}, extractedApex.Inputs.Strings())
++}
++
+ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer android.FixturePreparer, fragments ...java.ApexVariantReference) {
+ 	t.Helper()
+
+diff --git a/build/soong/apex/prebuilt.go b/build/soong/apex/prebuilt.go
+index 03ee11e..e9261c0 100644
+--- a/build/soong/apex/prebuilt.go
++++ b/build/soong/apex/prebuilt.go
+@@ -842,17 +842,17 @@ type ApexSet struct {
+
+ type ApexExtractorProperties struct {
+ 	// the .apks file path that contains prebuilt apex files to be extracted.
+-	Set *string
++	Set *string `android:"path"`
+
+ 	Sanitized struct {
+ 		None struct {
+-			Set *string
++			Set *string `android:"path"`
+ 		}
+ 		Address struct {
+-			Set *string
++			Set *string `android:"path"`
+ 		}
+ 		Hwaddress struct {
+-			Set *string
++			Set *string `android:"path"`
+ 		}
+ 	}
+
+diff --git a/build/make/core/soong_config.mk b/build/make/core/soong_config.mk
+index 16b7fae..ca87556 100644
+--- a/build/make/core/soong_config.mk
++++ b/build/make/core/soong_config.mk
+@@ -1,7 +1,7 @@
+ SOONG_MAKEVARS_MK := $(SOONG_OUT_DIR)/make_vars-$(TARGET_PRODUCT).mk
+ SOONG_VARIABLES := $(SOONG_OUT_DIR)/soong.variables
+ SOONG_ANDROID_MK := $(SOONG_OUT_DIR)/Android-$(TARGET_PRODUCT).mk
+-
++CAMERA_WITHOUT_GRALLOC4 ?= false
+ BINDER32BIT :=
+ ifneq ($(TARGET_USES_64_BIT_BINDER),true)
+ ifneq ($(TARGET_IS_64_BIT),true)
+@@ -224,6 +224,13 @@ $(call add_json_str,  DexpreoptGlobalConfig,             $(DEX_PREOPT_CONFIG))
+
+ $(call add_json_bool, WithDexpreopt,                     $(filter true,$(WITH_DEXPREOPT)))
+
++$(call add_json_bool, CameraSupportHDMI, 		 $(filter true,$(CAMERA_SUPPORT_HDMI)))
++$(call add_json_bool, CameraSupportHDMISubVideo, 	 $(filter true,$(CAMERA_SUPPORT_HDMI_SUBVIDEO)))
++$(call add_json_bool, CameraSupportOSD, 		 $(filter true,$(CAMERA_SUPPORT_OSD)))
++$(call add_json_bool, CameraSupportSubDevice, 	 	 $(filter true,$(CAMERA_SUPPORT_SUBDEVICE)))
++$(call add_json_bool, CameraWithGralloc4, 	 	 $(filter-out true,$(CAMERA_WITHOUT_GRALLOC4)))
++$(call add_json_bool, CameraWithOutGralloc4, 	 	 $(filter true,$(CAMERA_WITHOUT_GRALLOC4)))
++
+ $(call add_json_list, ManifestPackageNameOverrides,      $(PRODUCT_MANIFEST_PACKAGE_NAME_OVERRIDES))
+ $(call add_json_list, PackageNameOverrides,              $(PRODUCT_PACKAGE_NAME_OVERRIDES))
+ $(call add_json_list, CertificateOverrides,              $(PRODUCT_CERTIFICATE_OVERRIDES))
+diff --git a/build/soong/android/variable.go b/build/soong/android/variable.go
+index 8d96e31..34af3be 100644
+--- a/build/soong/android/variable.go
++++ b/build/soong/android/variable.go
+@@ -173,6 +173,66 @@ type variableProperties struct {
+ 			Srcs         []string `android:"arch_variant"`
+ 			Exclude_srcs []string `android:"arch_variant"`
+ 		} `android:"arch_variant"`
++
++		CameraSupportHDMI struct {
++			Cflags          []string
++			Cppflags        []string
++			Init_rc         []string
++			Required        []string
++			Host_required   []string
++			Target_required []string
++		}
++		CameraSupportVirtual struct {
++			Cflags          []string
++			Cppflags        []string
++			Init_rc         []string
++			Required        []string
++			Host_required   []string
++			Target_required []string
++		}
++		CameraSupportHDMISubVideo struct {
++			Cflags          []string
++			Cppflags        []string
++			Init_rc         []string
++			Required        []string
++			Host_required   []string
++			Target_required []string
++		}
++
++		CameraSupportOSD struct {
++			Cflags          []string
++			Cppflags        []string
++			Init_rc         []string
++			Required        []string
++			Host_required   []string
++			Target_required []string
++		}
++		CameraSupportSubDevice struct {
++			Cflags          []string
++			Cppflags        []string
++			Init_rc         []string
++			Required        []string
++			Host_required   []string
++			Target_required []string
++		}
++		CameraWithGralloc4 struct {
++			Cflags          []string
++			Cppflags        []string
++			Srcs            []string
++			Init_rc         []string
++			Required        []string
++			Host_required   []string
++			Target_required []string
++		}
++		CameraWithOutGralloc4 struct {
++			Cflags          []string
++			Cppflags        []string
++			Srcs            []string
++			Init_rc         []string
++			Required        []string
++			Host_required   []string
++			Target_required []string
++		}
+ 	} `android:"arch_variant"`
+ }
+
+@@ -271,6 +331,13 @@ type productVariables struct {
+ 	UseRBED8                     *bool    `json:",omitempty"`
+ 	Debuggable                   *bool    `json:",omitempty"`
+ 	Eng                          *bool    `json:",omitempty"`
++	CameraWithGralloc4           *bool    `json:",omitempty"`
++	CameraWithOutGralloc4        *bool    `json:",omitempty"`
++	CameraSupportHDMI            *bool    `json:",omitempty"`
++	CameraSupportHDMISubVideo    *bool    `json:",omitempty"`
++	CameraSupportVirtual         *bool    `json:",omitempty"`
++	CameraSupportSubDevice       *bool    `json:",omitempty"`
++	CameraSupportOSD             *bool    `json:",omitempty"`
+ 	Treble_linker_namespaces     *bool    `json:",omitempty"`
+ 	Enforce_vintf_manifest       *bool    `json:",omitempty"`
+ 	Uml                          *bool    `json:",omitempty"`
+diff --git a/build/soong/cc/config/global.go b/build/soong/cc/config/global.go
+index 3caf327..7b16396 100644
+--- a/build/soong/cc/config/global.go
++++ b/build/soong/cc/config/global.go
+@@ -30,6 +30,7 @@ var (
+ 	// will save bytes in build.ninja so they aren't repeated for every file
+ 	commonGlobalCflags = []string{
+ 		"-DANDROID",
++		"-DANDROID_13",
+ 		"-fmessage-length=0",
+ 		"-W",
+ 		"-Wall",
