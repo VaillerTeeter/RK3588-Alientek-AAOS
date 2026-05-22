@@ -20,6 +20,22 @@ GCC_BASE="prebuilts/gcc/linux-x86"
 ARM_TOOLCHAIN="gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf"
 AARCH64_TOOLCHAIN="gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu"
 
+# ---------- 辅助函数 ----------
+# extract_tar <tar_gz_path> <dest_dir>
+# 支持完整文件和分卷文件（.part-aa, .part-ab, ...）两种形式。
+# 返回 0 表示成功，1 表示源文件不存在。
+extract_tar() {
+    local tar_path="$1"
+    local dest_dir="$2"
+    if [[ -f "${tar_path}.part-aa" ]]; then
+        cat "${tar_path}.part-"* | tar -xz -C "$dest_dir"
+    elif [[ -f "$tar_path" ]]; then
+        tar -xzf "$tar_path" -C "$dest_dir"
+    else
+        return 1
+    fi
+}
+
 # ---------- 参数检查 ----------
 if [[ $# -lt 1 ]]; then
     echo "[ERROR] 未指定 Android 工程目录"
@@ -283,8 +299,7 @@ else
     echo "[WARN] 补丁文件不存在: $EXT_PATCH_FILE，跳过"
 fi
 
-if [[ -f "$EXT_RK_DIRS_TAR" ]]; then
-    tar -xzf "$EXT_RK_DIRS_TAR" -C "$ANDROID_ROOT"
+if extract_tar "$EXT_RK_DIRS_TAR" "$ANDROID_ROOT"; then
     echo "[DONE] external RK 专有目录已解压到 $ANDROID_ROOT/external/"
 else
     echo "[WARN] tar.gz 不存在: $EXT_RK_DIRS_TAR，跳过"
@@ -294,8 +309,7 @@ fi
 # RK3588 专有 device 目录，包含板级配置、overlay、脚本等
 echo "[10/15] 解压 device/rockchip ..."
 DEV_RK_TAR="$PATCHES_DIR/patches/rk3588-device-rk-dirs.tar.gz"
-if [[ -f "$DEV_RK_TAR" ]]; then
-    tar -xzf "$DEV_RK_TAR" -C "$ANDROID_ROOT"
+if extract_tar "$DEV_RK_TAR" "$ANDROID_ROOT"; then
     echo "[DONE] device/rockchip 已解压到 $ANDROID_ROOT/device/rockchip"
 else
     echo "[WARN] tar.gz 不存在: $DEV_RK_TAR，跳过"
@@ -349,8 +363,7 @@ if [[ -f "$HW_PATCH_FILE" ]]; then
 else
     echo "  [WARN] 补丁不存在: $HW_PATCH_FILE"
 fi
-if [[ -f "$HW_RK_FILES_TAR" ]]; then
-    tar -xzf "$HW_RK_FILES_TAR" -C "$ANDROID_ROOT/hardware"
+if extract_tar "$HW_RK_FILES_TAR" "$ANDROID_ROOT/hardware"; then
     echo "  [DONE] hardware RK 专有文件已解压（aic/bes/realtek/rockchip 等）"
 else
     echo "  [WARN] tar.gz 不存在: $HW_RK_FILES_TAR"
@@ -419,12 +432,10 @@ echo "[15/15] 解压 vendor RK 专有内容 ..."
 
 VENDOR_TAR="$PATCHES_DIR/patches/rk3588-vendor.tar.gz"
 
-if [[ -f "$VENDOR_TAR" ]]; then
-    tar -xzf "$VENDOR_TAR" -C "$ANDROID_ROOT"
+if extract_tar "$VENDOR_TAR" "$ANDROID_ROOT"; then
     echo "  [DONE] vendor 已解压（widevine + rockchip/hardware/interfaces + rockchip/common）"
 else
-    echo "  [WARN] tar.gz 不存在: $VENDOR_TAR"
-    echo "         该文件体积约 405 MB，需通过 Git LFS 或从完整 Alientek RK3588 SDK 手动获取"
+    echo "  [WARN] tar.gz 不存在: $VENDOR_TAR（分卷或完整包均未找到），跳过"
     echo "         跳过 vendor/ 解压，系统可编译但 GPU 驱动、Widevine DRM 及预装 APK 缺失"
 fi
 
