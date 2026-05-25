@@ -4648,7 +4648,7 @@ index 0000000..0000000 100644
 
      private CameraCapabilities.SceneMode mSceneMode;
 
-@@ -258,14 +313,72 @@
+@@ -258,14 +313,73 @@
 
                  @Override
                  public void onMediaSaved(Uri uri) {
@@ -4716,12 +4716,13 @@ index 0000000..0000000 100644
 +                mActivity.notifyNewMedia(uri);
 +            }
 +
++        }
 +    }
 +
      /**
       * Displays error dialog and allows use to enter feedback. Does not shut
       * down the app.
-@@ -281,6 +394,10 @@
+@@ -281,6 +395,10 @@
       * and restore it after HDR is off.
       */
      private String mFlashModeBeforeSceneMode;
@@ -4732,7 +4733,7 @@ index 0000000..0000000 100644
 
      private void checkDisplayRotation() {
          // Need to just be a no-op for the quick resume-pause scenario.
-@@ -391,9 +508,9 @@
+@@ -391,9 +509,9 @@
          // Aspect Ratio selection dialog is only shown for Nexus 4, 5 and 6.
          if (mAppController.getCameraAppUI().shouldShowAspectRatioDialog()) {
              // Switch to back camera to set aspect ratio.
@@ -4744,7 +4745,7 @@ index 0000000..0000000 100644
                                                 Keys.KEY_CAMERA_ID);
 
          mContentResolver = mActivity.getContentResolver();
-@@ -405,8 +522,10 @@
+@@ -405,8 +523,10 @@
 
          mQuickCapture = mActivity.getIntent().getBooleanExtra(EXTRA_QUICK_CAPTURE, false);
          mHeadingSensor = new HeadingSensor(AndroidServices.instance().provideSensorManager());
@@ -4757,7 +4758,7 @@ index 0000000..0000000 100644
          try {
              mOneCameraManager = OneCameraModule.provideOneCameraManager();
          } catch (OneCameraException e) {
-@@ -427,10 +546,11 @@
+@@ -427,10 +547,11 @@
          if (mUI.isCountingDown()) {
              // Cancel on-going countdown.
              mUI.cancelCountDown();
@@ -4772,7 +4773,7 @@ index 0000000..0000000 100644
      }
 
      @Override
-@@ -442,14 +562,26 @@
+@@ -442,14 +563,26 @@
          if (mIsImageCaptureIntent) {
              mActivity.getCameraAppUI().transitionToIntentCaptureLayout();
              setupCaptureParams();
@@ -4799,7 +4800,7 @@ index 0000000..0000000 100644
      }
 
      @Override
-@@ -482,6 +614,10 @@
+@@ -482,6 +615,10 @@
              return;
          }
          cancelCountDown();
@@ -4810,7 +4811,7 @@ index 0000000..0000000 100644
 
          mAppController.freezeScreenUntilPreviewReady();
          SettingsManager settingsManager = mActivity.getSettingsManager();
-@@ -490,7 +626,7 @@
+@@ -490,7 +627,7 @@
          closeCamera();
          mCameraId = mPendingSwitchCameraId;
 
@@ -4819,7 +4820,7 @@ index 0000000..0000000 100644
          requestCameraOpen();
          mUI.clearFaces();
          if (mFocusManager != null) {
-@@ -509,6 +645,15 @@
+@@ -509,6 +646,15 @@
       */
      private void requestCameraOpen() {
          Log.v(TAG, "requestCameraOpen");
@@ -4835,7 +4836,7 @@ index 0000000..0000000 100644
          mActivity.getCameraProvider().requestCamera(mCameraId,
                          GservicesHelper.useCamera2ApiThroughPortabilityLayer(mActivity
                                  .getContentResolver()));
-@@ -528,7 +673,7 @@
+@@ -528,7 +674,7 @@
                      // switch back to gcam, otherwise handle callback normally.
                      SettingsManager settingsManager = mActivity.getSettingsManager();
                      if (Keys.isCameraBackFacing(settingsManager,
@@ -4844,7 +4845,7 @@ index 0000000..0000000 100644
                          if (Keys.requestsReturnToHdrPlus(settingsManager,
                                                           mAppController.getModuleScope())) {
                              switchToGcamCapture();
-@@ -538,6 +683,7 @@
+@@ -538,6 +684,7 @@
 
                      ButtonManager buttonManager = mActivity.getButtonManager();
                      buttonManager.disableCameraButtonAndBlock();
@@ -4852,7 +4853,7 @@ index 0000000..0000000 100644
 
                      mPendingSwitchCameraId = state;
 
-@@ -554,23 +700,26 @@
+@@ -554,23 +701,26 @@
              new ButtonManager.ButtonCallback() {
                  @Override
                  public void onStateChanged(int state) {
@@ -4889,7 +4890,7 @@ index 0000000..0000000 100644
                          updateParametersSceneMode();
                          if (mCameraDevice != null) {
                              mCameraDevice.applySettings(mCameraSettings);
-@@ -599,6 +748,7 @@
+@@ -599,6 +749,7 @@
          public void onClick(View v) {
              mActivity.getCameraAppUI().transitionToIntentCaptureLayout();
              onCaptureRetake();
@@ -4897,7 +4898,7 @@ index 0000000..0000000 100644
          }
      };
 
-@@ -630,15 +780,24 @@
+@@ -630,15 +781,24 @@
          bottomBarSpec.cameraCallback = mCameraCallback;
          bottomBarSpec.enableFlash = !mAppController.getSettingsManager()
              .getBoolean(SettingsManager.SCOPE_GLOBAL, Keys.KEY_CAMERA_HDR);
@@ -4924,7 +4925,7 @@ index 0000000..0000000 100644
                      setExposureCompensation(value);
                  }
              };
-@@ -648,6 +807,235 @@
+@@ -648,6 +808,235 @@
                  mCameraCapabilities.getMaxExposureCompensation();
              bottomBarSpec.exposureCompensationStep =
                  mCameraCapabilities.getExposureCompensationStep();
@@ -5160,7 +5161,7 @@ index 0000000..0000000 100644
          }
 
          bottomBarSpec.enableSelfTimer = true;
-@@ -661,7 +1049,7 @@
+@@ -661,7 +1050,7 @@
              bottomBarSpec.showRetake = true;
              bottomBarSpec.retakeCallback = mRetakeCallback;
          }
@@ -5169,7 +5170,7 @@ index 0000000..0000000 100644
          return bottomBarSpec;
      }
 
-@@ -692,6 +1080,16 @@
+@@ -692,6 +1081,16 @@
                                       Keys.KEY_EXPOSURE);
      }
 
@@ -5186,7 +5187,7 @@ index 0000000..0000000 100644
      // Snapshots can only be taken after this is called. It should be called
      // once only. We could have done these things in onCreate() but we want to
      // make preview screen appear as soon as possible.
-@@ -733,17 +1131,108 @@
+@@ -733,17 +1132,108 @@
          });
      }
 
@@ -5296,7 +5297,7 @@ index 0000000..0000000 100644
          }
      }
 
-@@ -752,7 +1241,11 @@
+@@ -752,7 +1242,11 @@
          if (!mFaceDetectionStarted || mCameraDevice == null) {
              return;
          }
@@ -5309,7 +5310,7 @@ index 0000000..0000000 100644
              mFaceDetectionStarted = false;
              mCameraDevice.setFaceDetectionCallback(null, null);
              mCameraDevice.stopFaceDetection();
-@@ -843,17 +1336,228 @@
+@@ -843,17 +1337,228 @@
              return dataBundle;
          }
 
@@ -5539,7 +5540,7 @@ index 0000000..0000000 100644
      private final class JpegPictureCallback
              implements CameraPictureCallback {
          Location mLocation;
-@@ -865,12 +1569,17 @@
+@@ -865,12 +1570,17 @@
          @Override
          public void onPictureTaken(final byte[] originalJpegData, final CameraProxy camera) {
              Log.i(TAG, "onPictureTaken");
@@ -5558,7 +5559,7 @@ index 0000000..0000000 100644
              }
              if (mSceneMode == CameraCapabilities.SceneMode.HDR) {
                  mUI.setSwipingEnabled(true);
-@@ -895,7 +1604,18 @@
+@@ -895,7 +1605,18 @@
                      + mPictureDisplayedToJpegCallbackTime + "ms");
 
              if (!mIsImageCaptureIntent) {
@@ -5578,7 +5579,7 @@ index 0000000..0000000 100644
              }
 
              long now = System.currentTimeMillis();
-@@ -904,6 +1624,10 @@
+@@ -904,6 +1625,10 @@
              mJpegPictureCallbackTime = 0;
 
              final ExifInterface exif = Exif.getExif(originalJpegData);
@@ -5589,7 +5590,7 @@ index 0000000..0000000 100644
              final NamedEntity name = mNamedImages.getNextNameEntity();
              if (mShouldResizeTo16x9) {
                  final ResizeBundle dataBundle = new ResizeBundle();
-@@ -1032,6 +1756,11 @@
+@@ -1032,6 +1757,11 @@
      private final class AutoFocusCallback implements CameraAFCallback {
          @Override
          public void onAutoFocus(boolean focused, CameraProxy camera) {
@@ -5601,7 +5602,7 @@ index 0000000..0000000 100644
              SessionStatsCollector.instance().autofocusResult(focused);
              if (mPaused) {
                  return;
-@@ -1049,6 +1778,11 @@
+@@ -1049,6 +1779,11 @@
          @Override
          public void onAutoFocusMoving(
                  boolean moving, CameraProxy camera) {
@@ -5613,7 +5614,7 @@ index 0000000..0000000 100644
              mFocusManager.onAutoFocusMoving(moving);
              SessionStatsCollector.instance().autofocusMoving(moving);
          }
-@@ -1114,6 +1848,9 @@
+@@ -1114,6 +1849,9 @@
          Log.i(TAG, "capture");
          // If we are already in the middle of taking a snapshot or the image
          // save request is full then ignore.
@@ -5623,7 +5624,7 @@ index 0000000..0000000 100644
          if (mCameraDevice == null || mCameraState == SNAPSHOT_IN_PROGRESS
                  || mCameraState == SWITCHING_CAMERA) {
              return false;
-@@ -1138,24 +1875,99 @@
+@@ -1138,24 +1876,99 @@
          // Set JPEG orientation. Even if screen UI is locked in portrait, camera orientation should
          // still match device orientation (e.g., users should always get landscape photos while
          // capturing by putting device in landscape.)
@@ -5729,7 +5730,7 @@ index 0000000..0000000 100644
      }
 
      @Override
-@@ -1169,7 +1981,8 @@
+@@ -1169,7 +1982,8 @@
          // any scene modes, so we must check both NO_SCENE_MODE in addition to
          // AUTO to check where there is no actual scene mode set.
          if (!(CameraCapabilities.SceneMode.AUTO == mSceneMode ||
@@ -5739,7 +5740,7 @@ index 0000000..0000000 100644
              overrideCameraSettings(mCameraSettings.getCurrentFlashMode(),
                      mCameraSettings.getCurrentFocusMode());
          }
-@@ -1196,6 +2009,51 @@
+@@ -1196,6 +2010,51 @@
      }
 
      @Override
@@ -5791,7 +5792,7 @@ index 0000000..0000000 100644
      public void onCameraAvailable(CameraProxy cameraProxy) {
          Log.i(TAG, "onCameraAvailable");
          if (mPaused) {
-@@ -1294,7 +2152,11 @@
+@@ -1294,7 +2153,11 @@
                  ExifInterface exif = Exif.getExif(data);
                  int orientation = Exif.getOrientation(exif);
                  Bitmap bitmap = CameraUtil.makeBitmap(data, 50 * 1024);
@@ -5804,7 +5805,7 @@ index 0000000..0000000 100644
                  Log.v(TAG, "inlined bitmap into capture intent result");
                  mActivity.setResultEx(Activity.RESULT_OK,
                          new Intent("inline-data").putExtra("data", bitmap));
-@@ -1365,11 +2227,18 @@
+@@ -1365,11 +2228,18 @@
      public void onShutterButtonClick() {
          if (mPaused || (mCameraState == SWITCHING_CAMERA)
                  || (mCameraState == PREVIEW_STOPPED)
@@ -5824,7 +5825,7 @@ index 0000000..0000000 100644
          // Do not take the picture if there is not enough storage.
          if (mActivity.getStorageSpaceBytes() <= Storage.LOW_STORAGE_THRESHOLD_BYTES) {
              Log.i(TAG, "Not enough space or storage not ready. remaining="
-@@ -1380,6 +2249,9 @@
+@@ -1380,6 +2250,9 @@
          Log.d(TAG, "onShutterButtonClick: mCameraState=" + mCameraState +
                  " mVolumeButtonClickedFlag=" + mVolumeButtonClickedFlag);
 
@@ -5834,7 +5835,7 @@ index 0000000..0000000 100644
          mAppController.setShutterEnabled(false);
 
          int countDownDuration = mActivity.getSettingsManager()
-@@ -1396,7 +2268,69 @@
+@@ -1396,7 +2269,69 @@
          }
      }
 
@@ -5904,7 +5905,7 @@ index 0000000..0000000 100644
          if (mSceneMode == CameraCapabilities.SceneMode.HDR) {
              mUI.setSwipingEnabled(false);
          }
-@@ -1405,6 +2339,8 @@
+@@ -1405,6 +2340,8 @@
          // one and re-start the preview. Snapshot in progress also includes the
          // state that autofocus is focusing and a picture will be taken when
          // focus callback arrives.
@@ -5913,7 +5914,7 @@ index 0000000..0000000 100644
          if ((mFocusManager.isFocusingSnapOnFinish() || mCameraState == SNAPSHOT_IN_PROGRESS)) {
              if (!mIsImageCaptureIntent) {
                  mSnapshotOnIdle = true;
-@@ -1438,7 +2374,11 @@
+@@ -1438,7 +2375,11 @@
      @Override
      public void resume() {
          mPaused = false;
@@ -5926,7 +5927,7 @@ index 0000000..0000000 100644
          mCountdownSoundPlayer.loadSound(R.raw.timer_final_second);
          mCountdownSoundPlayer.loadSound(R.raw.timer_increment);
          if (mFocusManager != null) {
-@@ -1553,8 +2493,13 @@
+@@ -1553,8 +2494,13 @@
          // (e.g. onResume -> onPause -> onResume).
          stopPreview();
          cancelCountDown();
@@ -5942,7 +5943,7 @@ index 0000000..0000000 100644
 
          mNamedImages = null;
          // If we are in an image capture intent and has taken
-@@ -1587,7 +2532,11 @@
+@@ -1587,7 +2533,11 @@
 
      @Override
      public void destroy() {
@@ -5955,7 +5956,7 @@ index 0000000..0000000 100644
      }
 
      @Override
-@@ -1612,7 +2561,7 @@
+@@ -1612,7 +2562,7 @@
          if (mCameraDevice == null) {
              return;
          }
@@ -5964,7 +5965,7 @@ index 0000000..0000000 100644
          mFocusStartTime = System.currentTimeMillis();
          mCameraDevice.autoFocus(mHandler, mAutoFocusCallback);
          SessionStatsCollector.instance().autofocusManualTrigger();
-@@ -1634,7 +2583,15 @@
+@@ -1634,7 +2584,15 @@
          if (mPaused || mCameraDevice == null || !mFirstTimeInitialized
                  || mCameraState == SNAPSHOT_IN_PROGRESS
                  || mCameraState == SWITCHING_CAMERA
@@ -5981,7 +5982,7 @@ index 0000000..0000000 100644
              return;
          }
 
-@@ -1645,12 +2602,139 @@
+@@ -1645,12 +2603,139 @@
          mFocusManager.onSingleTapUp(x, y);
      }
 
@@ -6121,7 +6122,7 @@ index 0000000..0000000 100644
      public boolean onKeyDown(int keyCode, KeyEvent event) {
          switch (keyCode) {
              case KeyEvent.KEYCODE_VOLUME_UP:
-@@ -1746,6 +2830,19 @@
+@@ -1746,6 +2831,19 @@
          startPreview();
      }
 
@@ -6141,7 +6142,7 @@ index 0000000..0000000 100644
      /**
       * Returns whether we can/should start the preview or not.
       */
-@@ -1798,6 +2895,22 @@
+@@ -1798,6 +2896,22 @@
              mFocusManager.setAeAwbLock(false); // Unlock AE and AWB.
          }
 
@@ -6164,7 +6165,7 @@ index 0000000..0000000 100644
          // Nexus 4 must have picture size set to > 640x480 before other
          // parameters are set in setCameraParameters, b/18227551. This call to
          // updateParametersPictureSize should occur before setCameraParameters
-@@ -1818,8 +2931,11 @@
+@@ -1818,8 +2932,11 @@
                      mFocusManager.onPreviewStarted();
                      PhotoModule.this.onPreviewStarted();
                      SessionStatsCollector.instance().previewActive(true);
@@ -6178,7 +6179,7 @@ index 0000000..0000000 100644
                      }
                  }
              };
-@@ -1834,7 +2950,14 @@
+@@ -1834,7 +2951,14 @@
 
      @Override
      public void stopPreview() {
@@ -6193,7 +6194,7 @@ index 0000000..0000000 100644
              Log.i(TAG, "stopPreview");
              mCameraDevice.stopPreview();
              mFaceDetectionStarted = false;
-@@ -1843,15 +2966,19 @@
+@@ -1843,15 +2967,19 @@
          if (mFocusManager != null) {
              mFocusManager.onPreviewStopped();
          }
@@ -6214,7 +6215,7 @@ index 0000000..0000000 100644
              if (settingsManager.getBoolean(SettingsManager.SCOPE_GLOBAL,
                                             Keys.KEY_CAMERA_HDR)) {
                  // HDR is on.
-@@ -1868,10 +2995,95 @@
+@@ -1868,10 +2996,95 @@
                  }
                  mAppController.getButtonManager().enableButton(ButtonManager.BUTTON_FLASH);
              }
@@ -6312,7 +6313,7 @@ index 0000000..0000000 100644
          }
      }
 
-@@ -1952,6 +3164,18 @@
+@@ -1952,6 +3165,18 @@
 
          // Set exposure compensation
          updateParametersExposureCompensation();
@@ -6331,7 +6332,7 @@ index 0000000..0000000 100644
 
          // Set the scene mode: also sets flash and white balance.
          updateParametersSceneMode();
-@@ -1976,6 +3200,9 @@
+@@ -1976,6 +3201,9 @@
          CameraPictureSizesCacher.updateSizesForCamera(mAppController.getAndroidContext(),
                  mCameraDevice.getCameraId(), supported);
 
@@ -6341,7 +6342,7 @@ index 0000000..0000000 100644
          OneCamera.Facing cameraFacing =
                isCameraFrontFacing() ? OneCamera.Facing.FRONT : OneCamera.Facing.BACK;
          Size pictureSize;
-@@ -2045,15 +3272,174 @@
+@@ -2045,15 +3273,174 @@
          }
      }
 
@@ -6516,7 +6517,7 @@ index 0000000..0000000 100644
                  mCameraSettings.setSceneMode(mSceneMode);
 
                  // Setting scene mode will change the settings of flash mode,
-@@ -2068,8 +3454,18 @@
+@@ -2068,8 +3455,18 @@
                  mSceneMode = CameraCapabilities.SceneMode.AUTO;
              }
          }
@@ -6536,7 +6537,7 @@ index 0000000..0000000 100644
              // Set flash mode.
              updateParametersFlashMode();
 
-@@ -2079,6 +3475,8 @@
+@@ -2079,6 +3476,8 @@
                      mFocusManager.getFocusMode(mCameraSettings.getCurrentFocusMode()));
          } else {
              mFocusManager.overrideFocusMode(mCameraSettings.getCurrentFocusMode());
@@ -6545,7 +6546,7 @@ index 0000000..0000000 100644
          }
      }
 
-@@ -2100,9 +3498,11 @@
+@@ -2100,9 +3499,11 @@
          }
          if (mCameraSettings.getCurrentFocusMode() ==
                  CameraCapabilities.FocusMode.CONTINUOUS_PICTURE) {
@@ -6557,7 +6558,7 @@ index 0000000..0000000 100644
              mCameraDevice.setAutoFocusMoveCallback(null, null);
          }
      }
-@@ -2113,6 +3513,7 @@
+@@ -2113,6 +3514,7 @@
       * @param value exposure compensation value to be set
       */
      public void setExposureCompensation(int value) {
@@ -6565,7 +6566,7 @@ index 0000000..0000000 100644
          int max = mCameraCapabilities.getMaxExposureCompensation();
          int min = mCameraCapabilities.getMinExposureCompensation();
          if (value >= min && value <= max) {
-@@ -2125,6 +3526,145 @@
+@@ -2125,6 +3527,145 @@
          }
      }
 
@@ -6711,7 +6712,7 @@ index 0000000..0000000 100644
      // We separate the parameters into several subsets, so we can update only
      // the subsets actually need updating. The PREFERENCE set needs extra
      // locking because the preference can be changed from GLThread as well.
-@@ -2197,6 +3737,45 @@
+@@ -2197,6 +3738,45 @@
          mAwbLockSupported = mCameraCapabilities.supports(CameraCapabilities.Feature.AUTO_WHITE_BALANCE_LOCK);
          mContinuousFocusSupported =
                  mCameraCapabilities.supports(CameraCapabilities.FocusMode.CONTINUOUS_PICTURE);
@@ -6757,7 +6758,7 @@ index 0000000..0000000 100644
      }
 
      @Override
-@@ -2222,6 +3801,10 @@
+@@ -2222,6 +3802,10 @@
      @Override
      public void onMemoryStateChanged(int state) {
          mAppController.setShutterEnabled(state == MemoryManager.STATE_OK);
@@ -6768,7 +6769,7 @@ index 0000000..0000000 100644
      }
 
      @Override
-@@ -2259,4 +3842,10 @@
+@@ -2259,4 +3843,10 @@
              }
          });
      }
@@ -25224,18 +25225,7 @@ diff --git a/packages/apps/Settings/res/values/strings.xml b/packages/apps/Setti
 index 0000000..0000000 100644
 --- a/packages/apps/Settings/res/values/strings.xml
 +++ b/packages/apps/Settings/res/values/strings.xml
-@@ -6478,10 +6478,6 @@
-     <string name="battery_tip_summary_summary" product="tablet">Tablet has typical background battery usage</string>
-     <!-- Summary for the battery summary tip [CHAR LIMIT=NONE] -->
-     <string name="battery_tip_summary_summary" product="device">Device has typical background battery usage</string>
--    <!-- Title for the battery replacement tip [CHAR LIMIT=NONE] -->
--    <string name="battery_tip_replacement_title">Battery replacement recommended</string>
--    <!-- Summary for the battery replacement tip [CHAR LIMIT=NONE] -->
--    <string name="battery_tip_replacement_summary">Battery capacity and charging performance are reduced, and battery replacement is recommended.</string>
-     <!-- Title for the low battery tip [CHAR LIMIT=NONE] -->
-     <string name="battery_tip_low_battery_title">Battery level low</string>
-     <!-- Summary for the low battery tip [CHAR LIMIT=NONE] -->
-@@ -7008,6 +7004,10 @@
+@@ -7008,6 +7008,10 @@
      <string name="battery_system_usage_for">System usage for <xliff:g id="slot">%s</xliff:g></string>
      <!-- [CHAR_LIMIT=NONE] Battery app usage section header -->
      <string name="battery_app_usage_for">App usage for <xliff:g id="slot">%s</xliff:g></string>
@@ -25246,16 +25236,7 @@ index 0000000..0000000 100644
      <!-- [CHAR_LIMIT=NONE] Battery usage item for total usage time less than a minute -->
      <string name="battery_usage_total_less_than_one_minute">Total: less than a min</string>
      <!-- [CHAR_LIMIT=NONE] Battery usage item for total background time less than a minute -->
-@@ -8236,8 +8236,6 @@
-     <string name="help_url_battery" translatable="false"></string>
-     <!-- Help URL, Battery Defender [DO NOT TRANSLATE] -->
-     <string name="help_url_battery_defender" translatable="false"></string>
--    <!-- Help URL, Battery Replacement [DO NOT TRANSLATE] -->
--    <string name="help_url_battery_replacement" translatable="false"></string>
-     <!-- Help URL, Dock Defender [DO NOT TRANSLATE] -->
-     <string name="help_url_dock_defender" translatable="false"></string>
-     <!-- Help URL, Accounts [DO NOT TRANSLATE] -->
-@@ -14551,4 +14549,21 @@
+@@ -14551,4 +14555,21 @@
      <!-- [CHAR LIMIT=NONE] Hint for QR code process failure -->
      <string name="bt_le_audio_qr_code_is_not_valid_format">QR code isn\u0027t a valid format</string>
 
@@ -25692,33 +25673,6 @@ index 0000000..0000000 100644
              // The selected time out value is longer than the max timeout allowed by the admin.
              // Select the largest value from the list by default.
              final SelectorWithWidgetPreference preferenceWithLargestTimeout =
-diff --git a/packages/apps/Settings/src/com/android/settings/fuelgauge/BatteryInfo.java b/packages/apps/Settings/src/com/android/settings/fuelgauge/BatteryInfo.java
-index 0000000..0000000 100644
---- a/packages/apps/Settings/src/com/android/settings/fuelgauge/BatteryInfo.java
-+++ b/packages/apps/Settings/src/com/android/settings/fuelgauge/BatteryInfo.java
-@@ -52,7 +52,6 @@
-     public int pluggedStatus;
-     public boolean discharging = true;
-     public boolean isOverheated;
--    public boolean isDead;
-     public long remainingTimeUs = 0;
-     public long averageTimeToDischarge = EstimateKt.AVERAGE_TIME_TO_DISCHARGE_UNKNOWN;
-     public String batteryPercentString;
-@@ -258,10 +257,10 @@
-         info.pluggedStatus = batteryBroadcast.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
-         info.mCharging = info.pluggedStatus != 0;
-         info.averageTimeToDischarge = estimate.getAverageDischargeTime();
--        final int health = batteryBroadcast.getIntExtra(
--                BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN);
--        info.isOverheated = health == BatteryManager.BATTERY_HEALTH_OVERHEAT;
--        info.isDead = health == BatteryManager.BATTERY_HEALTH_DEAD;
-+        info.isOverheated = batteryBroadcast.getIntExtra(
-+                BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_UNKNOWN)
-+                == BatteryManager.BATTERY_HEALTH_OVERHEAT;
-+
-         info.statusLabel = Utils.getBatteryStatus(context, batteryBroadcast, isCompactStatus);
-         info.batteryStatus = batteryBroadcast.getIntExtra(
-                 BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN);
 diff --git a/packages/apps/Settings/src/com/android/settings/fuelgauge/batterytip/BatteryTipLoader.java b/packages/apps/Settings/src/com/android/settings/fuelgauge/batterytip/BatteryTipLoader.java
 index 0000000..0000000 100644
 --- a/packages/apps/Settings/src/com/android/settings/fuelgauge/batterytip/BatteryTipLoader.java
@@ -25764,21 +25718,11 @@ diff --git a/packages/apps/Settings/src/com/android/settings/fuelgauge/batteryti
 index 0000000..0000000 100644
 --- a/packages/apps/Settings/src/com/android/settings/fuelgauge/batterytip/tips/BatteryTip.java
 +++ b/packages/apps/Settings/src/com/android/settings/fuelgauge/batterytip/tips/BatteryTip.java
-@@ -59,8 +59,7 @@
-             TipType.LOW_BATTERY,
-             TipType.REMOVE_APP_RESTRICTION,
-             TipType.BATTERY_DEFENDER,
--            TipType.DOCK_DEFENDER,
--            TipType.BATTERY_REPLACEMENT})
-+            TipType.DOCK_DEFENDER})
-     public @interface TipType {
-         int SMART_BATTERY_MANAGER = 0;
-         int APP_RESTRICTION = 1;
-@@ -72,24 +71,22 @@
+@@ -72,24 +72,23 @@
          int REMOVE_APP_RESTRICTION = 7;
          int BATTERY_DEFENDER = 8;
          int DOCK_DEFENDER = 9;
--        int BATTERY_REPLACEMENT = 10;
+         int BATTERY_REPLACEMENT = 10;
      }
 
      @VisibleForTesting
