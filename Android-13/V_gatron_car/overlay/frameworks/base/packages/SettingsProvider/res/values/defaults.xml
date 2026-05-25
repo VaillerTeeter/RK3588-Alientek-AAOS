@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Disable lockscreen sound effect -->
+  <integer name="def_lockscreen_sounds_enabled">0</integer>
+  <bool name="def_lockscreen_disabled">true</bool>
+</resources>
+
