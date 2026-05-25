@@ -201,7 +201,18 @@ else
     echo "[SKIP] device/rockchip 不存在"
 fi
 
-# 补丁 11：全部 frameworks（av / base / base-packages / base-services / ex / native / opt）
+# 补丁 11：V_gatron_car 产品目录
+# 整体清理时已由上方 device/rockchip 删除涵盖；
+# 选择性单独清理时此步骤独立生效。
+TARGET="$ANDROID_ROOT/device/rockchip/rk3588/V_gatron_car"
+if [[ -d "$TARGET" ]]; then
+    rm -rf "$TARGET"
+    echo "[DONE] 已删除 device/rockchip/rk3588/V_gatron_car"
+else
+    echo "[SKIP] device/rockchip/rk3588/V_gatron_car 不存在"
+fi
+
+# 补丁 12：全部 frameworks（av / base / base-packages / base-services / ex / native / opt）
 for _fw_patch in \
     "$REPO_DIR/Android-13/patches/rk3588-frameworks.patch"; do
     if [[ -f "$_fw_patch" ]]; then
@@ -263,7 +274,7 @@ if [[ -f "$ART_PROFILE" ]] && grep -qF "Lcom/android/server/rkdisplay/RkDisplayM
     echo "[DONE] art-profile 已移除 rkdisplay ART 预编译条目"
 fi
 
-# 补丁 12：hardware（git diff 补丁 + RK 专有目录/文件）
+# 补丁 13：hardware（git diff 补丁 + RK 专有目录/文件）
 HW_PATCH_FILE="$REPO_DIR/Android-13/patches/rk3588-hardware.patch"
 if [[ -f "$HW_PATCH_FILE" ]]; then
     if git -C "$REPO_DIR" apply -R --check --unsafe-paths \
@@ -323,7 +334,7 @@ for rk_path in \
     fi
 done
 
-# 补丁 13：system（git diff 补丁 + RK 专有文件）
+# 补丁 14：system（git diff 补丁 + RK 专有文件）
 SYS_PATCH_FILE="$REPO_DIR/Android-13/patches/rk3588-system.patch"
 if [[ -f "$SYS_PATCH_FILE" ]]; then
     if git -C "$REPO_DIR" apply -R --check --unsafe-paths \
@@ -354,7 +365,7 @@ for rk_path in \
     fi
 done
 
-# ---------- 补丁 14：packages ----------
+# ---------- 补丁 15：packages ----------
 PKG_PATCH_FILE="$REPO_DIR/Android-13/patches/rk3588-packages.patch"
 if [[ -f "$PKG_PATCH_FILE" ]]; then
     if git -C "$REPO_DIR" apply -R --check --unsafe-paths \
@@ -389,7 +400,7 @@ done
 echo "[INFO] packages 中各现有 app 的 RK 专有资源文件（Camera2/TvSettings 等图片）已由 patch -R 还原修改部分"
 echo "[INFO] 如需完全还原纯新增文件，请在各子目录执行 git checkout -- ."
 
-# ---------- 补丁 15：vendor（整个 vendor/ 目录为 RK-only，直接删除即可） ----------
+# ---------- 补丁 16：vendor（整个 vendor/ 目录为 RK-only，直接删除即可） ----------
 echo "  删除 vendor/ RK 专有目录..."
 for rk_path in \
     "vendor/widevine" \
@@ -444,6 +455,21 @@ for empty_dir in \
         echo "[DONE] 已移除空目录 $empty_dir"
     fi
 done
+
+# ---------- misc.img ----------
+if [[ -f "$ANDROID_ROOT/rkst/Image/misc.img" ]]; then
+    rm -f "$ANDROID_ROOT/rkst/Image/misc.img"
+    echo "[DONE] 已删除 rkst/Image/misc.img"
+    # 清理可能变空的父目录
+    for _d in "$ANDROID_ROOT/rkst/Image" "$ANDROID_ROOT/rkst"; do
+        if [[ -d "$_d" ]] && [[ -z "$(ls -A "$_d" 2>/dev/null)" ]]; then
+            rmdir "$_d"
+            echo "[DONE] 已移除空目录 ${_d#"$ANDROID_ROOT/"}"
+        fi
+    done
+else
+    echo "[SKIP] rkst/Image/misc.img 不存在"
+fi
 
 echo ""
 echo "========================================"

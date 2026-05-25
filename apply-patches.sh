@@ -134,14 +134,14 @@ fi
 
 # ---------- 补丁 1：build.sh ----------
 # 主编译脚本，负责环境检查、源码修复、source build/envsetup.sh、lunch 及各模块构建
-echo "[1/15] 复制 build.sh 到 $ANDROID_ROOT ..."
+echo "[1/16] 复制 build.sh 到 $ANDROID_ROOT ..."
 cp "$PATCHES_DIR/build.sh" "$ANDROID_ROOT/build.sh"
 chmod +x "$ANDROID_ROOT/build.sh"
 echo "[DONE] $ANDROID_ROOT/build.sh"
 
 # ---------- 补丁 2：u-boot ----------
 # 移植项目的 u-boot 部分，复制到 Android 工程根目录
-echo "[2/15] 复制 u-boot ..."
+echo "[2/16] 复制 u-boot ..."
 if [[ -d "$UBOOT_DIR" ]]; then
     cp -r "$UBOOT_DIR" "$ANDROID_ROOT/u-boot"
     # u-boot 是子模块，内含指向父仓库的 .git 文件（gitdir 相对路径）。
@@ -154,7 +154,7 @@ fi
 
 # ---------- 补丁 3：rkbin ----------
 # Rockchip 固件 bin 文件，u-boot 打包时依赖
-echo "[3/15] 复制 rkbin ..."
+echo "[3/16] 复制 rkbin ..."
 if [[ -d "$RKBIN_DIR" ]]; then
     cp -r "$RKBIN_DIR" "$ANDROID_ROOT/rkbin"
     # 同上，删除子模块遗留的 .git 文件，避免路径失效报错
@@ -166,7 +166,7 @@ fi
 
 # ---------- 补丁 4：kernel-5.10 ----------
 # Android 13 内核源码，build.sh 编译内核时从 kernel-5.10/ 目录读取
-echo "[4/15] 复制 kernel-5.10 ..."
+echo "[4/16] 复制 kernel-5.10 ..."
 if [[ -d "$KERNEL_DIR" ]]; then
     cp -r "$KERNEL_DIR" "$ANDROID_ROOT/kernel-5.10"
     # 同上，删除子模块遗留的 .git 文件
@@ -200,7 +200,7 @@ fi
 
 # ---------- 补丁 5：GCC 工具链 ----------
 # gcc-linaro-6.3.1 是 U-Boot 构建脚本硬编码的工具链，不可替换
-echo "[5/15] 解压 GCC 工具链 (gcc-linaro-6.3.1) ..."
+echo "[5/16] 解压 GCC 工具链 (gcc-linaro-6.3.1) ..."
 ARM_SRC="$PATCHES_DIR/$GCC_BASE/arm/${ARM_TOOLCHAIN}.tar.xz"
 AARCH64_SRC="$PATCHES_DIR/$GCC_BASE/aarch64/${AARCH64_TOOLCHAIN}.tar.xz"
 ARM_DEST="$ANDROID_ROOT/$GCC_BASE/arm"
@@ -219,6 +219,11 @@ fi
 
 if [[ -d "$AARCH64_DEST/$AARCH64_TOOLCHAIN" ]]; then
     echo "[SKIP] 64 位工具链已存在，跳过"
+elif [[ -f "${AARCH64_SRC}.part-aa" ]]; then
+    echo "  [64位] 重组并解压 aarch64-linux-gnu 工具链分卷 ..."
+    mkdir -p "$AARCH64_DEST"
+    cat "${AARCH64_SRC}.part-"* | tar -xJ -C "$AARCH64_DEST"
+    echo "[DONE] 64 位工具链: $AARCH64_DEST/$AARCH64_TOOLCHAIN"
 elif [[ -f "$AARCH64_SRC" ]]; then
     echo "  [64位] 解压 aarch64-linux-gnu 工具链 ..."
     mkdir -p "$AARCH64_DEST"
@@ -230,7 +235,7 @@ fi
 
 # ---------- 补丁 6：bionic ----------
 # git diff 补丁修改 1 个文件（bionic/libc/Android.bp：libstdc++ 新增 vendor_available: true）
-echo "[6/15] 应用 bionic git diff 补丁 ..."
+echo "[6/16] 应用 bionic git diff 补丁 ..."
 BIONIC_PATCH_FILE="$PATCHES_DIR/patches/rk3588-bionic.patch"
 
 if [[ -f "$BIONIC_PATCH_FILE" ]]; then
@@ -245,7 +250,7 @@ fi
 # ---------- 补丁 7：bootable/recovery ----------
 # git diff 补丁修改 21 个文件（bootable/recovery 各子目录）
 # tar.gz 包含 4 个 RK 专有目录（mtdutils pcba_core rkupdate rkutility）
-echo "[7/15] 应用 bootable/recovery git diff 补丁并解压 RK 专有目录 ..."
+echo "[7/16] 应用 bootable/recovery git diff 补丁并解压 RK 专有目录 ..."
 BOOTABLE_PATCH_FILE="$PATCHES_DIR/patches/rk3588-bootable.patch"
 RK_DIRS_TAR="$PATCHES_DIR/patches/rk3588-recovery-rk-dirs.tar.gz"
 
@@ -272,7 +277,7 @@ fi
 #        soong/android/variable.go、soong/apex/apex_test.go + prebuilt.go、
 #        soong/cc/config/global.go（加 -DANDROID_13）
 # SKIP：build_id.mk（版本号差异）、generic_ramdisk.mk（AOSP 13 支持这些 ramdisk 工具）
-echo "[8/15] 应用 build 目录 git diff 补丁 ..."
+echo "[8/16] 应用 build 目录 git diff 补丁 ..."
 BUILD_PATCH_FILE="$PATCHES_DIR/patches/rk3588-build.patch"
 if [[ -f "$BUILD_PATCH_FILE" ]]; then
     git -C "$REPO_DIR" apply --unsafe-paths \
@@ -286,7 +291,7 @@ fi
 # ---------- 补丁 9：external 目录 ----------
 # git diff 补丁修改/新增 26 个文件（e2fsprogs、iperf3、libdrm、skia、speex、tinyalsa、wpa_supplicant_8）
 # tar.gz 包含 8 个 RK 专有目录（camera_engine_rkaiq、can-utils、e2fsprogs/libiconv、io、libdrm/rockchip、ntfs-3g、rk_tee_user、wifi_driver）
-echo "[9/15] 应用 external 目录 git diff 补丁并解压 RK 专有目录 ..."
+echo "[9/16] 应用 external 目录 git diff 补丁并解压 RK 专有目录 ..."
 EXT_PATCH_FILE="$PATCHES_DIR/patches/rk3588-external.patch"
 EXT_RK_DIRS_TAR="$PATCHES_DIR/patches/rk3588-external-rk-dirs.tar.gz"
 
@@ -294,7 +299,7 @@ if [[ -f "$EXT_PATCH_FILE" ]]; then
     git -C "$REPO_DIR" apply --unsafe-paths \
         --directory="$ANDROID_ROOT" \
         "$EXT_PATCH_FILE"
-    echo "[DONE] external git diff 补䬁已应用5（26 个文件）"
+    echo "[DONE] external git diff 补丁已应用（26 个文件）"
 else
     echo "[WARN] 补丁文件不存在: $EXT_PATCH_FILE，跳过"
 fi
@@ -307,7 +312,7 @@ fi
 
 # ---------- 补丁 10：device/rockchip ----------
 # RK3588 专有 device 目录，包含板级配置、overlay、脚本等
-echo "[10/15] 解压 device/rockchip ..."
+echo "[10/16] 解压 device/rockchip ..."
 DEV_RK_TAR="$PATCHES_DIR/patches/rk3588-device-rk-dirs.tar.gz"
 if extract_tar "$DEV_RK_TAR" "$ANDROID_ROOT"; then
     echo "[DONE] device/rockchip 已解压到 $ANDROID_ROOT/device/rockchip"
@@ -315,10 +320,26 @@ else
     echo "[WARN] tar.gz 不存在: $DEV_RK_TAR，跳过"
 fi
 
-# ---------- 补丁 11：frameworks（全部子目录合并）----------
+# ---------- 补丁 11：V_gatron_car 产品目录 ----------
+# 仓库 Android-13/V_gatron_car/ 下的自定义产品配置，独立于 RK vendor tar.gz。
+# 包含：AndroidProducts.mk、BoardConfig.mk、V_gatron_car.mk、manifest.xml、
+#        Android.mk、AndroidBoard.mk、overlay/、recovery.fstab、dt-overlay.in、
+#        bt_vendor.conf、media_profiles_default.xml
+echo "[11/16] 复制 V_gatron_car 产品目录 ..."
+V_GATRON_SRC="$PATCHES_DIR/V_gatron_car"
+V_GATRON_DEST="$ANDROID_ROOT/device/rockchip/rk3588/V_gatron_car"
+if [[ -d "$V_GATRON_SRC" ]]; then
+    mkdir -p "$V_GATRON_DEST"
+    cp -r "$V_GATRON_SRC/." "$V_GATRON_DEST/"
+    echo "[DONE] V_gatron_car 已复制到 $V_GATRON_DEST"
+else
+    echo "[WARN] 源目录不存在: $V_GATRON_SRC，跳过"
+fi
+
+# ---------- 补丁 12：frameworks（全部子目录合并）----------
 # 1 个合并 patch（247 个文件），1 个合并 tar.gz（55 个 RK 专有文件）
 # 涵盖 av / base / base-packages / base-services / ex / native / opt 所有改动
-echo "[11/15] 应用全部 frameworks git diff 补丁并解压 RK 专有文件 ..."
+echo "[12/16] 应用全部 frameworks git diff 补丁并解压 RK 专有文件 ..."
 
 FW_PATCH_FILE="$PATCHES_DIR/patches/rk3588-frameworks.patch"
 FW_RK_FILES_TAR="$PATCHES_DIR/patches/rk3588-frameworks-rk-files.tar.gz"
@@ -347,12 +368,12 @@ else
     echo "  [WARN] art-profile 不存在: $ART_PROFILE"
 fi
 
-# ---------- 补丁 12：hardware ----------
+# ---------- 补丁 13：hardware ----------
 # git diff 补丁修改 36 个文件（broadcom/libbt、interfaces/audio/bluetooth/camera/graphics/wifi、libhardware、ril）
 # tar.gz 包含 4 个 RK-only 顶级目录（aic、bes、realtek、rockchip）+ 子目录和 RK 专有文件
 # 解压后追加 rk3588-librga-android13.patch：
 #   将 librga/include/drmrga.h 中 ANDROID_12 改为 ANDROID_13，与 global.go 的 -DANDROID_13 对齐
-echo "[12/15] 应用 hardware git diff 补丁并解压 RK 专有文件 ..."
+echo "[13/16] 应用 hardware git diff 补丁并解压 RK 专有文件 ..."
 
 HW_PATCH_FILE="$PATCHES_DIR/patches/rk3588-hardware.patch"
 HW_RK_FILES_TAR="$PATCHES_DIR/patches/rk3588-hardware-rk-files.tar.gz"
@@ -376,10 +397,10 @@ else
     echo "  [WARN] 补丁不存在: $LIBRGA_PATCH"
 fi
 
-# ---------- 补丁 13：system ----------
+# ---------- 补丁 14：system ----------
 # git diff 补丁修改 18 个文件（core/healthd、core/init、core/libcutils、core/libsync、core/rootdir、extras/su、media/audio、vold）
 # tar.gz 包含 2 个 RK-only 文件（system/vold/fs/Ntfs.cpp、Ntfs.h）
-echo "[13/15] 应用 system git diff 补丁并解压 RK 专有文件 ..."
+echo "[14/16] 应用 system git diff 补丁并解压 RK 专有文件 ..."
 
 SYS_PATCH_FILE="$PATCHES_DIR/patches/rk3588-system.patch"
 SYS_RK_FILES_TAR="$PATCHES_DIR/patches/rk3588-system-rk-files.tar.gz"
@@ -396,13 +417,13 @@ else
     echo "  [WARN] tar.gz 不存在: $SYS_RK_FILES_TAR"
 fi
 
-# ---------- 补丁 14：packages ----------
+# ---------- 补丁 15：packages ----------
 # git diff 补丁修改 394 个文件（Calendar/Camera2/Gallery2/KeyChain/Music/Settings/TvSettings/TV/
 #   Bluetooth/Connectivity/Wifi/MediaProvider/Telecomm 等各子模块）
 # tar.gz 包含 RK-only 整体 app（DisplayAdjust/ExactCalculator/SoundRecorder/rkCamera2）
 #   + 现有 app 中的 RK-only 资源/源码文件（Camera2/Gallery2/Music/Settings/TvSettings/TV）
 #   + Bluetooth APEX 签名文件（avbpubkey/pem）
-echo "[14/15] 应用 packages git diff 补丁并解压 RK 专有文件 ..."
+echo "[15/16] 应用 packages git diff 补丁并解压 RK 专有文件 ..."
 
 PKG_PATCH_FILE="$PATCHES_DIR/patches/rk3588-packages.patch"
 PKG_RK_FILES_TAR="$PATCHES_DIR/patches/rk3588-packages-rk-files.tar.gz"
@@ -419,7 +440,7 @@ else
     echo "  [WARN] tar.gz 不存在: $PKG_RK_FILES_TAR"
 fi
 
-# ---------- 补丁 15：vendor ----------
+# ---------- 补丁 16：vendor ----------
 # vendor/ 目录在 AOSP 标准树中不存在，全部为 RK-only 内容：
 #   rk3588-vendor.tar.gz（~405 MB）：
 #     vendor/widevine — Widevine DRM
@@ -428,7 +449,7 @@ fi
 #   注：打包时已排除其他芯片 GPU 变体（Mali400/G52/T760/T860/libG6110）
 #   由于文件体积超过 GitHub 100 MB 单文件限制，需配置 Git LFS 后再 push：
 #     git lfs install && git lfs track "Android-13/patches/rk3588-vendor.tar.gz"
-echo "[15/15] 解压 vendor RK 专有内容 ..."
+echo "[16/16] 解压 vendor RK 专有内容 ..."
 
 VENDOR_TAR="$PATCHES_DIR/patches/rk3588-vendor.tar.gz"
 
@@ -437,6 +458,18 @@ if extract_tar "$VENDOR_TAR" "$ANDROID_ROOT"; then
 else
     echo "  [WARN] tar.gz 不存在: $VENDOR_TAR（分卷或完整包均未找到），跳过"
     echo "         跳过 vendor/ 解压，系统可编译但 GPU 驱动、Widevine DRM 及预装 APK 缺失"
+fi
+
+# ---------- misc.img ----------
+# misc 分区控制 U-Boot 启动流程（正常启动 / 进入 recovery / 进入 fastboot），
+# 由 RK SDK 预编译，不参与 Android 编译，直接从本仓库 patches/ 复制。
+MISC_IMG="$PATCHES_DIR/patches/misc.img"
+if [[ -f "$MISC_IMG" ]]; then
+    mkdir -p "$ANDROID_ROOT/rkst/Image"
+    cp -f "$MISC_IMG" "$ANDROID_ROOT/rkst/Image/misc.img"
+    echo "  [DONE] misc.img 已复制到 $ANDROID_ROOT/rkst/Image/misc.img"
+else
+    echo "  [WARN] misc.img 不存在: $MISC_IMG"
 fi
 
 echo ""
