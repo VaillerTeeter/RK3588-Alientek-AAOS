@@ -8,6 +8,15 @@
 > 以下清单按软件层级分类，覆盖完整车机量产所需的安全加固项。
 > 标记说明：`[ ]` 未完成 · `[x]` 已在 V-gatron_defconfig / 当前代码中启用 · `[-]` 不适用/已确认跳过
 
+> [!IMPORTANT]
+> **AVB 全链路 + A/B OTA 需作为一个整体迭代来做，等基础系统稳定后再启动。**
+>
+> 两者强耦合，单独启用任意一侧都会触发连锁问题：
+> - 开启 `BOARD_AVB_ENABLE` 后 Android 侧 `fs_mgr` 会尝试 dm-verity verify，但若 U-Boot 侧未烧录正式密钥，校验链断裂导致分区挂载失败（ADB 断、Display 消失等症状）
+> - A/B 分区布局变更后分区表、parameter.txt、`bootctl` HAL、`update_engine`、vbmeta slot 后缀均需联动调整，任何一环缺失都会导致 slot 切换死循环或无法回退
+>
+> **在此之前**：`BOARD_AVB_ENABLE` 保持 `false`（`avb-switch.sh disable`），不启用 `AB_OTA_UPDATER`，使用单 slot non-A/B 分区表开发调试。
+
 ---
 <!-- TODO: 要搞标准的Android车机的安装包，而不是RK特供的 -->
 ### 一、U-Boot / Bootloader 层
@@ -54,6 +63,7 @@
 - [ ] **串口 console 关闭**：量产内核命令行去掉 `earlycon` / `console=ttyFIQ0`（由 U-Boot bootargs 传入，需量产 defconfig 配合）
 - [ ] **pstore/Ramoops DTS 节点**：内核 DTS 配置 `ramoops` 节点，与 U-Boot `CONFIG_PSTORE=y` 配合，预留物理内存区域写入崩溃日志
 - [ ] **网络隔离**：iptables/nftables 规则隔离车控总线（CAN/LIN）与信息娱乐网络，防跨域攻击
+- [ ] **GKI 迁移（可选）**：当前使用 RK3588 自定义内核（非 GKI），编译产物无 `init_boot.img` / `vendor_boot.img`；若未来需接入 Android CDD 认证或 GKI 合规体系，需迁移至 GKI 2.0 内核（内核 ABI 稳定接口），将 vendor 驱动模块移入 `vendor_dlkm`，build.sh 需同步重新支持 `init_boot.img` / `vendor_boot.img` 的收集
 
 ---
 
