@@ -19,9 +19,9 @@ log_warn()    { echo -e "${_Y}  ⚠  ${_N}$*"; }
 log_error()   { echo -e "${_R}  ✗  ${_N}$*" >&2; }
 log_step()    { echo -e "${_W}  ▶  ${_N}$*"; }
 log_banner()  {
-    echo -e "${_B}════════════════════════════════════════${_N}"
+    echo -e "${_B}════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════${_N}"
     echo -e "${_W}  $*${_N}"
-    echo -e "${_B}════════════════════════════════════════${_N}"
+    echo -e "${_B}════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════${_N}"
 }
 
 # 执行命令并检测结果，失败时打印错误信息后退出
@@ -39,17 +39,23 @@ run_cmd() {
 # ---------- 参数解析 ----------
 usage() {
     cat <<EOF
-用法: $(basename "$0") <-U | -K> [-c] [-h]
+用法: $(basename "$0") <--all | -U | -K | -A> [-c] [-h]
 
 选项:
+  --all 全流程编译（U-Boot → 内核 → Android）并自动整理分区镜像
   -U    编译 U-Boot（含 SPL 三步打包流程）
   -K    编译内核 (kernel-5.10)
+  -A    整编 Android（make installclean + make -j）
   -c    全量编译（编译前先 make clean，清除全部中间产物）
+        仅可与 --all 或各子目标单独使用
   -h    显示此帮助信息
 
 示例:
-  $(basename "$0") -U          # 增量编译 U-Boot
-  $(basename "$0") -K          # 增量编译内核
+  $(basename "$0") --all       # 全流程：U-Boot + 内核 + Android + mkimage
+  $(basename "$0") --all -c    # 全流程全量重编
+  $(basename "$0") -U          # 仅编译 U-Boot（增量）
+  $(basename "$0") -K          # 仅编译内核（增量）
+  $(basename "$0") -A          # 仅整编 Android
   $(basename "$0") -K -c       # 全量重编内核
   $(basename "$0") -U -c       # 全量重编 U-Boot
 EOF
@@ -57,7 +63,9 @@ EOF
 
 BUILD_UBOOT=0
 BUILD_KERNEL=0
+BUILD_ANDROID=0
 BUILD_CLEAN=0
+BUILD_ALL=0
 
 if [[ $# -eq 0 ]]; then
     log_error "需要至少一个选项"
@@ -65,20 +73,47 @@ if [[ $# -eq 0 ]]; then
     exit 1
 fi
 
-while getopts ":UKch" opt; do
-    case $opt in
-        U) BUILD_UBOOT=1 ;;
-        K) BUILD_KERNEL=1 ;;
-        c) BUILD_CLEAN=1 ;;
-        h) usage; exit 0 ;;
-        \?) log_error "未知选项 -${OPTARG}"; usage; exit 1 ;;
-    esac
+# --all 是长选项，getopts 不支持，先单独扫描
+_extra_args=()
+for _a in "$@"; do
+    if [[ "$_a" == "--all" ]]; then
+        BUILD_ALL=1
+    else
+        _extra_args+=("$_a")
+    fi
 done
 
-if [[ $BUILD_UBOOT -eq 0 && $BUILD_KERNEL -eq 0 ]]; then
-    log_error "请指定 -U 或 -K 编译目标"
-    usage
-    exit 1
+if [[ $BUILD_ALL -eq 1 ]]; then
+    # --all 模式：等价于 -U -K -A；只允许额外附加 -c
+    BUILD_UBOOT=1
+    BUILD_KERNEL=1
+    BUILD_ANDROID=1
+    for _a in "${_extra_args[@]}"; do
+        case "$_a" in
+            -c) BUILD_CLEAN=1 ;;
+            -h) usage; exit 0 ;;
+            *)  log_error "--all 模式下只允许附加 -c，不支持: $_a"
+                usage; exit 1 ;;
+        esac
+    done
+else
+    # 普通短选项解析
+    while getopts ":UKAch" opt; do
+        case $opt in
+            U) BUILD_UBOOT=1 ;;
+            K) BUILD_KERNEL=1 ;;
+            A) BUILD_ANDROID=1 ;;
+            c) BUILD_CLEAN=1 ;;
+            h) usage; exit 0 ;;
+            \?) log_error "未知选项 -${OPTARG}"; usage; exit 1 ;;
+        esac
+    done
+
+    if [[ $BUILD_UBOOT -eq 0 && $BUILD_KERNEL -eq 0 && $BUILD_ANDROID -eq 0 ]]; then
+        log_error "请指定 --all、-U、-K 或 -A 编译目标"
+        usage
+        exit 1
+    fi
 fi
 
 # ---------- 初始化编译环境 ----------
@@ -167,7 +202,8 @@ fi
 if command -v curl &>/dev/null; then
     log_info "curl: $(curl --version | head -1)"
 else
-    log_warn "未找到 curl（部分步骤可能需要）: sudo apt install curl"
+    log_error "未找到 curl（部分步骤可能需要）: sudo apt install curl"
+    exit 1
 fi
 
 # -- clang（内核编译依赖 AOSP 预编译 clang-r450784d）--
@@ -177,8 +213,9 @@ CLANG_BIN="$ANDROID_ROOT/prebuilts/clang/host/linux-x86/${CLANG_VERSION}/bin"
 if [[ -d "$CLANG_BIN" ]]; then
     log_info "clang: $("$CLANG_BIN/clang" --version | head -1)"
 else
-    log_warn "未找到 AOSP 预编译 clang (${CLANG_VERSION})，内核编译将不可用"
-    log_warn "期望路径: $CLANG_BIN"
+    log_error "未找到 AOSP 预编译 clang (${CLANG_VERSION})，内核编译将不可用"
+    log_error "期望路径: $CLANG_BIN"
+    exit 1
 fi
 
 # -- 物理内存 --
@@ -238,18 +275,244 @@ else
     log_info "跳过 $PROP_CTX_FILE（文件不存在）"
 fi
 
+# Fix #2: genrule 依赖 .git/HEAD 生成版本号头文件，但这三个目录从 tar 包解压，
+#   没有 .git/，Soong 解析 Android.bp 时报"module source path does not exist"。
+#   注意：~/Android-13 是 repo 工作区，git init 在未注册的子目录里会被 repo 的
+#   git 配置拦截。改用直接写 .git/HEAD 文件（fake），满足 Soong 文件存在检查。
+#   version.sh 里的 git log 命令在没有 git 历史时会返回空，脚本均有容错处理。
+_ensure_git_head() {
+    local dir="$1"
+    local label="$2"
+    if [[ ! -d "$dir" ]]; then
+        log_info "跳过 ${label}（目录不存在）"
+        return
+    fi
+    # repo sync 留下的 .git symlink 指向 .repo/projects/... 但该路径不存在 → 悬空 symlink
+    # mkdir -p 遇到 symlink 会报 "File exists"，需先删掉再建真正的目录
+    if [[ -L "$dir/.git" && ! -e "$dir/.git" ]]; then
+        log_info "${label}: 检测到悬空 .git symlink，移除..."
+        rm "$dir/.git"
+    fi
+    if [[ -f "$dir/.git/HEAD" ]]; then
+        log_info "${label}: .git/HEAD 已存在，跳过"
+        return
+    fi
+    log_step "${label}: 创建 fake .git/HEAD（满足 genrule 文件依赖）..."
+    mkdir -p "$dir/.git/refs/heads"
+    echo "ref: refs/heads/main" > "$dir/.git/HEAD"
+    log_ok "${label}: .git/HEAD 创建完成（版本字段将显示 build-time，无功能影响）"
+}
+
+_ensure_git_head "$ANDROID_ROOT/hardware/rockchip/libmpimmz"                    "libmpimmz"
+_ensure_git_head "$ANDROID_ROOT/vendor/rockchip/hardware/interfaces/codec2"      "codec2"
+_ensure_git_head "$ANDROID_ROOT/hardware/rockchip/libhwjpeg"                    "libhwjpeg"
+
+# Fix #3: hardware/rockchip/wifi/wifi_hal/vendor/qcom/Android.mk 在
+#   TARGET_BOARD_PLATFORM_PRODUCT=car 时把 LOCAL_PATH 指向
+#   hardware/qcom/wlan/qcwcn/wifi_hal（AOSP 13 该路径已移至 legacy/ 子目录），
+#   导致 libwifi-hal-ctrl 的源文件 wifi_hal_ctrl/wifi_hal_ctrl.c 找不到。
+#   用 sed 原地将路径修正为 hardware/qcom/wlan/legacy/qcwcn/wifi_hal。
+_QCOM_WIFI_MK="$ANDROID_ROOT/hardware/rockchip/wifi/wifi_hal/vendor/qcom/Android.mk"
+if [[ -f "$_QCOM_WIFI_MK" ]]; then
+    if grep -q "hardware/qcom/wlan/qcwcn/wifi_hal" "$_QCOM_WIFI_MK"; then
+        sed -i 's|LOCAL_PATH := hardware/qcom/wlan/qcwcn/wifi_hal|LOCAL_PATH := hardware/qcom/wlan/legacy/qcwcn/wifi_hal|g' \
+            "$_QCOM_WIFI_MK"
+        log_ok "已修复 $_QCOM_WIFI_MK（qcwcn → legacy/qcwcn）"
+    else
+        log_info "跳过 $_QCOM_WIFI_MK（路径已正确或文件内容已变更）"
+    fi
+else
+    log_info "跳过 $_QCOM_WIFI_MK（文件不存在）"
+fi
+
 # ---- 3. 加载编译工具链 ----
 log_step "[3/3] 加载 Android 编译工具链（envsetup + lunch）..."
 
 source build/envsetup.sh
 
 # 选择编译目标：
-#   aosp_car_arm64  - ARM64 架构的通用 AOSP Car target，适合 RK3588 等真机移植起点
-#   userdebug       - 保留 root 权限和调试能力，移植开发阶段使用
-lunch aosp_car_arm64-userdebug || { log_error "lunch 失败"; exit 1; }
+#   V_gatron_car - RK3588 AAOS 车机目标（device/rockchip/rk3588/V_gatron_car）
+#   userdebug    - 保留 root 权限和调试能力，移植开发阶段使用
+# do_mkimage() 依赖 get_build_var（需板级上下文），所有模式均使用此目标。
+lunch V_gatron_car-userdebug || { log_error "lunch 失败"; exit 1; }
 
 log_ok "编译环境初始化完成"
 cd "$SCRIPT_DIR"
+
+# ============================================================
+# do_mkimage：将各分区镜像整理到 $SCRIPT_DIR/Image/
+#   移植自 RK 参考 mkimage.sh，适配 V_gatron_car / RK3588 差异：
+#   - RK3588 ATF 已内嵌于 uboot.img，无独立 trust.img（正常跳过）
+#   - BOARD_AVB_ENABLE=false → 使用 device/rockchip/common/vbmeta.img 占位
+#   - rkst/Image/misc.img 由 apply-patches.sh 从 patches/misc.img 部署（未找到则警告）
+#   - parameter.txt 优先 device 目录，回退 $OUT，再回退工厂镜像
+#   - boot.img 优先 $OUT（整编产物），回退 kernel-5.10/（-K 临时合成版）
+# ============================================================
+do_mkimage() {
+    log_banner "整理分区镜像（mkimage）"
+    cd "$ANDROID_ROOT"
+
+    local TARGET_DEVICE_DIR; TARGET_DEVICE_DIR=$(get_build_var TARGET_DEVICE_DIR)
+    local BOARD_AVB_ENABLE; BOARD_AVB_ENABLE=$(get_build_var BOARD_AVB_ENABLE)
+    local PRODUCT_USE_DYNAMIC_PARTITIONS; PRODUCT_USE_DYNAMIC_PARTITIONS=$(get_build_var PRODUCT_USE_DYNAMIC_PARTITIONS)
+    local TARGET_BASE_PARAMETER_IMAGE; TARGET_BASE_PARAMETER_IMAGE=$(get_build_var TARGET_BASE_PARAMETER_IMAGE)
+    local KERNEL_PATH; KERNEL_PATH=$(get_build_var PRODUCT_KERNEL_PATH)
+
+    local IMAGE_DIR="$SCRIPT_DIR/Image"
+    local UBOOT_PATH="$SCRIPT_DIR/u-boot"
+
+    log_info "TARGET_DEVICE_DIR              = $TARGET_DEVICE_DIR"
+    log_info "BOARD_AVB_ENABLE               = $BOARD_AVB_ENABLE"
+    log_info "PRODUCT_USE_DYNAMIC_PARTITIONS = $PRODUCT_USE_DYNAMIC_PARTITIONS"
+    log_info "KERNEL_PATH                    = $KERNEL_PATH"
+    log_info "IMAGE_DIR                      = $IMAGE_DIR"
+
+    if [[ -d "$IMAGE_DIR" ]]; then
+        log_info "清空已有目录: $IMAGE_DIR"
+        rm -rf "${IMAGE_DIR:?}"/*
+    else
+        log_info "创建目录: $IMAGE_DIR"
+        mkdir -p "$IMAGE_DIR" || { log_error "创建 $IMAGE_DIR 失败"; exit 1; }
+    fi
+
+    # ---- uboot.img ----
+    if [[ -f "$UBOOT_PATH/uboot.img" ]]; then
+        cp -a "$UBOOT_PATH/uboot.img" "$IMAGE_DIR/uboot.img"
+        log_ok "uboot.img"
+    else
+        log_warn "uboot.img 未找到: $UBOOT_PATH/uboot.img（请先编译 U-Boot）"
+    fi
+
+    # ---- MiniLoaderAll.bin ----
+    local _loader_found=0
+    local _loader_pat
+    for _loader_pat in "$UBOOT_PATH"/*_loader_*.bin "$UBOOT_PATH"/*loader*.bin; do
+        if [[ -f "$_loader_pat" ]]; then
+            cp -a "$_loader_pat" "$IMAGE_DIR/MiniLoaderAll.bin"
+            log_ok "MiniLoaderAll.bin（from $(basename "$_loader_pat")）"
+            _loader_found=1
+            break
+        fi
+    done
+    [[ $_loader_found -eq 0 ]] && log_warn "未找到 loader bin（$UBOOT_PATH/*loader*.bin），请先编译 U-Boot"
+
+    # ---- dtbo.img（优先 dtbo.img，回退 rebuild-dtbo.img）----
+    if [[ -f "${OUT:-}/dtbo.img" ]]; then
+        cp -a "$OUT/dtbo.img" "$IMAGE_DIR/dtbo.img"
+        log_ok "dtbo.img"
+    elif [[ -f "${OUT:-}/rebuild-dtbo.img" ]]; then
+        cp -a "$OUT/rebuild-dtbo.img" "$IMAGE_DIR/dtbo.img"
+        log_ok "dtbo.img（from rebuild-dtbo.img）"
+    else
+        log_warn "dtbo.img / rebuild-dtbo.img 均未找到，跳过"
+    fi
+
+    # ---- resource.img（来自内核源码目录，含 logo BMP）----
+    if [[ -f "$ANDROID_ROOT/$KERNEL_PATH/resource.img" ]]; then
+        cp -a "$ANDROID_ROOT/$KERNEL_PATH/resource.img" "$IMAGE_DIR/resource.img"
+        log_ok "resource.img"
+    else
+        log_warn "resource.img 未找到: $ANDROID_ROOT/$KERNEL_PATH/resource.img"
+    fi
+
+    # ---- boot.img ----
+    if [[ -f "${OUT:-}/boot.img" ]]; then
+        cp -a "$OUT/boot.img" "$IMAGE_DIR/boot.img"
+        log_ok "boot.img"
+    else
+        log_warn "boot.img 未找到: $OUT/boot.img（请先运行 ./build.sh -A 整编）"
+    fi
+
+    # ---- recovery.img ----
+    if [[ -f "${OUT:-}/recovery.img" ]]; then
+        cp -a "$OUT/recovery.img" "$IMAGE_DIR/recovery.img"
+        log_ok "recovery.img"
+    else
+        log_warn "recovery.img 未找到"
+    fi
+
+    # ---- super.img（动态分区）----
+    if [[ -f "${OUT:-}/super.img" ]]; then
+        cp -a "$OUT/super.img" "$IMAGE_DIR/super.img"
+        log_ok "super.img"
+    else
+        log_warn "super.img 未找到"
+    fi
+
+    # ---- data.img（来自 userdata.img；AB 模式不收集，但当前非 AB）----
+    if [[ -f "${OUT:-}/userdata.img" ]]; then
+        cp -a "$OUT/userdata.img" "$IMAGE_DIR/data.img"
+        log_ok "data.img（from userdata.img）"
+    else
+        log_warn "userdata.img 未找到，跳过 data.img"
+    fi
+
+    # ---- vbmeta.img ----
+    if [[ "$BOARD_AVB_ENABLE" == "true" ]]; then
+        if [[ -f "${OUT:-}/vbmeta.img" ]]; then
+            cp -a "$OUT/vbmeta.img" "$IMAGE_DIR/vbmeta.img"
+            log_ok "vbmeta.img（AVB 签名版）"
+        else
+            log_warn "AVB 开启但 vbmeta.img 未找到: $OUT/vbmeta.img"
+        fi
+    else
+        if [[ -f "device/rockchip/common/vbmeta.img" ]]; then
+            cp -a "device/rockchip/common/vbmeta.img" "$IMAGE_DIR/vbmeta.img"
+            log_warn "vbmeta.img（dummy，BOARD_AVB_ENABLE=false）"
+        else
+            log_warn "device/rockchip/common/vbmeta.img 未找到"
+        fi
+    fi
+
+    # ---- misc.img（来自 rkst/Image/，由 apply-patches.sh 从 patches/misc.img 部署）----
+    # misc 分区控制 U-Boot 启动流向（正常 / recovery / fastboot），RK 预编译 blob。
+    if [[ -f "rkst/Image/misc.img" ]]; then
+        cp -a "rkst/Image/misc.img" "$IMAGE_DIR/misc.img"
+        log_ok "misc.img"
+    else
+        log_error "misc.img 未找到: rkst/Image/misc.img（请重新运行 apply-patches.sh）"
+        exit 1
+    fi
+
+    # ---- config.cfg（RKDevTool 烧录配置）----
+    local _flash_cfg="$TARGET_DEVICE_DIR/config.cfg"
+    if [[ -f "$_flash_cfg" ]]; then
+        cp -a "$_flash_cfg" "$IMAGE_DIR/config.cfg"
+        log_ok "config.cfg"
+    else
+        log_warn "config.cfg 未找到: $_flash_cfg"
+    fi
+
+    # ---- parameter.txt（eMMC 分区表）----
+    # 优先 device 目录，回退 $OUT（动态生成），再回退工厂镜像（-K 单独编译时）
+    local _param_dev="$TARGET_DEVICE_DIR/parameter.txt"
+    if [[ -f "$_param_dev" ]]; then
+        cp -a "$_param_dev" "$IMAGE_DIR/parameter.txt"
+        log_warn "parameter.txt（来自 device 目录）"
+    elif [[ -f "${OUT:-}/parameter.txt" ]]; then
+        cp -a "$OUT/parameter.txt" "$IMAGE_DIR/parameter.txt"
+        log_ok "parameter.txt（来自 \$OUT，动态生成）"
+    else
+        log_warn "parameter.txt 未找到（device 目录、\$OUT均无）"
+    fi
+
+    # ---- baseparameter.img（可选，TARGET_BASE_PARAMETER_IMAGE 控制）----
+    if [[ -n "$TARGET_BASE_PARAMETER_IMAGE" ]]; then
+        if [[ -f "$TARGET_BASE_PARAMETER_IMAGE" ]]; then
+            cp -a "$TARGET_BASE_PARAMETER_IMAGE" "$IMAGE_DIR/baseparameter.img"
+            log_ok "baseparameter.img"
+        else
+            log_warn "baseparameter.img 未找到: $TARGET_BASE_PARAMETER_IMAGE"
+        fi
+    fi
+
+    chmod a+r -R "$IMAGE_DIR/"
+    cd "$SCRIPT_DIR"
+
+    log_ok "产物目录: $IMAGE_DIR"
+    log_info "$(ls -lh "$IMAGE_DIR" 2>/dev/null || echo '（空）')"
+    log_banner "镜像整理完成 ✓"
+}
 
 # ---------- 编译 U-Boot ----------
 if [[ $BUILD_UBOOT -eq 1 ]]; then
@@ -303,23 +566,11 @@ fi
 
 # ---------- 编译内核 ----------
 if [[ $BUILD_KERNEL -eq 1 ]]; then
-    # ---- 内核编译参数 ----
-    # TODO: 以下参数硬编码为 ATK_DLRK3588 目标值，待 device 目录移植完成后
-    #       通过 get_build_var 从 BoardConfig.mk 动态读取。
-
-    # device/rockchip/rk3588/BoardConfig.mk:50  PRODUCT_KERNEL_VERSION := 5.10
-    KERNEL_VERSION="5.10"
-
-    # device/rockchip/rk3588/BoardConfig.mk:22  PRODUCT_KERNEL_ARCH ?= arm64
-    KERNEL_ARCH="arm64"
-
-    # device/rockchip/rk3588/ATK_DLRK3588/BoardConfig.mk:37
-    # PRODUCT_KERNEL_CONFIG := V-gatron_defconfig
-    KERNEL_DEFCONFIG="V-gatron_defconfig"
-
-    # device/rockchip/rk3588/ATK_DLRK3588/BoardConfig.mk:32
-    # PRODUCT_KERNEL_DTS := rk3588-v-gatron
-    KERNEL_DTS="rk3588-v-gatron"
+    # ---- 内核编译参数（从 BoardConfig.mk 动态读取）----
+    KERNEL_VERSION=$(get_build_var PRODUCT_KERNEL_VERSION)
+    KERNEL_ARCH=$(get_build_var PRODUCT_KERNEL_ARCH)
+    KERNEL_DEFCONFIG=$(get_build_var PRODUCT_KERNEL_CONFIG)
+    KERNEL_DTS=$(get_build_var PRODUCT_KERNEL_DTS)
 
     KERNEL_SRC="$SCRIPT_DIR/kernel-${KERNEL_VERSION}"
     LOCAL_KERNEL_PATH="$KERNEL_SRC"
@@ -362,7 +613,8 @@ if [[ $BUILD_KERNEL -eq 1 ]]; then
     if [[ -f .scmversion ]]; then
         log_info "内核版本后缀 (.scmversion): \"$(cat .scmversion)\""
     else
-        log_warn ".scmversion 不存在，make 阶段可能出现 git 警告，建议重新运行 apply-patches.sh"
+        log_error ".scmversion 不存在，make 阶段可能出现 git 警告，建议重新运行 apply-patches.sh"
+        exit 1
     fi
 
     # ---- [1/4] 将 clang 加入 PATH（LLVM=1 前提）----
@@ -387,14 +639,39 @@ if [[ $BUILD_KERNEL -eq 1 ]]; then
     run_cmd "make ${KERNEL_DTS}.img" \
         make $ADDON_ARGS ARCH="${KERNEL_ARCH}" "${KERNEL_DTS}.img" -j"${BUILD_JOBS}"
 
-    # TODO [B]: 外部 wifi/BT driver（.ko），整编时由 Android 构建系统处理，待 external/wifi_driver/ 就绪后启用
-    log_warn "TODO [B] 外部 wifi driver：external/wifi_driver/ 不存在，跳过"
+    # ---- [wifi] 外部 wifi/BT driver 编译（out-of-tree 内核模块 .ko）----
+    # external/wifi_driver 顶层是 Kbuild 风格（obj-$(CONFIG_...)），无 Android.mk/bp，
+    # 必须用 make -C <kernel> M=<driver> 在内核源码树外单独编译，整编无法自动覆盖。
+    EXT_WIFI_PATH="$ANDROID_ROOT/external/wifi_driver"
+    if [[ -d "$EXT_WIFI_PATH" ]]; then
+        log_step "[wifi] 编译外部 wifi/BT 驱动（out-of-tree 内核模块）..."
+        # set_android_version.sh：根据 Android 版本号导出驱动编译宏（如 ANDROID_VERSION）
+        if [[ -f "$EXT_WIFI_PATH/set_android_version.sh" ]]; then
+            source "$EXT_WIFI_PATH/set_android_version.sh" "$EXT_WIFI_PATH"
+            log_info "已加载 wifi driver set_android_version.sh"
+        fi
+        if [[ $BUILD_CLEAN -eq 1 ]]; then
+            run_cmd "wifi driver: make clean" \
+                make $ADDON_ARGS ARCH="${KERNEL_ARCH}" \
+                    -C "$KERNEL_SRC" M="$EXT_WIFI_PATH" clean
+        else
+            log_info "增量模式，跳过 wifi driver clean（-c 可全量重编）"
+        fi
+        run_cmd "wifi driver: make -j${BUILD_JOBS}" \
+            make $ADDON_ARGS ARCH="${KERNEL_ARCH}" \
+                -C "$KERNEL_SRC" M="$EXT_WIFI_PATH" -j"${BUILD_JOBS}"
+        log_ok "外部 wifi/BT 驱动编译完成"
+    else
+        log_error "external/wifi_driver/ 不存在，跳过外部 wifi 驱动编译"
+        exit 1
+    fi
 
     # ---- [3/3] 复制 kernel Image → $OUT/kernel ----
     # make bootimage 从 $OUT/kernel 取镜像，整编不会重编内核源码，须手动放置
     log_step "[3/3] 复制 kernel Image → \$OUT/kernel..."
     if [[ -z "${OUT:-}" ]]; then
-        log_warn "[3/3] \$OUT 未设置，跳过（lunch 环境变量丢失，请重新 source build/envsetup.sh && lunch）"
+        log_error "[3/3] \$OUT 未设置，跳过（lunch 环境变量丢失，请重新 source build/envsetup.sh && lunch）"
+        exit 1
     else
         mkdir -p "$OUT"
         run_cmd "cp Image → \$OUT/kernel" \
@@ -402,114 +679,37 @@ if [[ $BUILD_KERNEL -eq 1 ]]; then
         log_info "已放置: ${OUT}/kernel（make bootimage 从此路径取 Image）"
     fi
 
-    # ---- [临时] 合成可刷写 boot.img（factory-ramdisk + 新内核 + resource.img）----
-    # 整编 Android 完成前的临时刷机验证方案，替代 TODO [E] make bootimage。
-    # factory-ramdisk 提取自工厂 boot.img（header v2），随仓库提交。
-    # mkbootimg 参数由 unpack_bootimg.py 解包工厂镜像获得：
-    #   pagesize=2048  kernel_offset=0x10008000  ramdisk_offset=0x11000000
-    #   second_offset=0x10f00000  tags_offset=0x10000100  dtb_offset=0x11f00000
-    FACTORY_RAMDISK="${KERNEL_SRC}/factory-ramdisk"
-    MKBOOTIMG_PY="${ANDROID_ROOT}/system/tools/mkbootimg/mkbootimg.py"
-    BOOT_IMG_OUT="${KERNEL_SRC}/boot.img"
-
-    if [[ ! -f "${FACTORY_RAMDISK}" ]]; then
-        log_warn "[临时] 未找到预提取的工厂 ramdisk: ${FACTORY_RAMDISK}，跳过 boot.img 合成"
-        log_warn "       请从工厂 boot.img 提取: unpack_bootimg.py --boot_img boot(hdmi0_8k).img --out <dir>"
-        log_warn "       然后将解包目录中的 ramdisk 复制到 rk-kernel-5.10/factory-ramdisk"
-    elif [[ ! -f "${MKBOOTIMG_PY}" ]]; then
-        log_warn "[临时] 未找到 mkbootimg.py: ${MKBOOTIMG_PY}，跳过 boot.img 合成"
-    else
-        log_step "[临时] 合成 boot.img（factory-ramdisk + 新内核）..."
-
-        run_cmd "mkbootimg 合成 boot.img" \
-            python3 "${MKBOOTIMG_PY}" \
-                --header_version 2 \
-                --os_version     "13.0.0" \
-                --os_patch_level "2023-08" \
-                --kernel  "${KERNEL_SRC}/arch/arm64/boot/Image" \
-                --ramdisk "${FACTORY_RAMDISK}" \
-                --second  "${KERNEL_SRC}/resource.img" \
-                --dtb     "${KERNEL_SRC}/arch/arm64/boot/dts/rockchip/${KERNEL_DTS}.dtb" \
-                --pagesize 2048 \
-                --base            0x00000000 \
-                --kernel_offset   0x10008000 \
-                --ramdisk_offset  0x11000000 \
-                --second_offset   0x10f00000 \
-                --tags_offset     0x10000100 \
-                --dtb_offset      0x0000000011f00000 \
-                --cmdline 'console=ttyFIQ0 firmware_class.path=/vendor/etc/firmware init=/init rootwait ro loop.max_part=7 androidboot.console=ttyFIQ0 androidboot.wificountrycode=CN androidboot.hardware=rk30board androidboot.boot_devices=fe2e0000.mmc androidboot.selinux=permissive buildvariant=userdebug' \
-                --output "${BOOT_IMG_OUT}"
-
-        log_ok "boot.img 合成完成: ${BOOT_IMG_OUT}"
-        log_info "刷入命令: fastboot flash boot ${BOOT_IMG_OUT}"
-    fi
-
-    # TODO [E]: make bootimage / recoveryimage，依赖整编 Android，待 device 目录移植完成后实现
-    log_warn "TODO [E] make bootimage/recoveryimage：待 device 目录移植完成后实现"
+    # ---- [boot] 合成 boot.img ----
+    log_step "[boot] make bootimage..."
+    cd "$ANDROID_ROOT"
+    run_cmd "make bootimage"     make bootimage
+    run_cmd "make recoveryimage" make recoveryimage
+    log_ok "boot.img: ${OUT}/boot.img"
+    log_info "刷入命令: fastboot flash boot ${OUT}/boot.img"
 
     cd "$SCRIPT_DIR"
     log_banner "内核编译完成 ✓"
 fi
 
-# ---------- 收集产物到 Image 目录 ----------
-log_banner "收集编译产物"
+# ---------- 整编 Android ----------
+if [[ $BUILD_ANDROID -eq 1 ]]; then
+    log_banner "整编 Android"
 
-IMAGE_DIR="$SCRIPT_DIR/Image"
-COLLECTED=0
+    BUILD_JOBS="${CPU_CORES}"
+    log_info "BUILD_JOBS = ${BUILD_JOBS}"
 
-if [[ -d "$IMAGE_DIR" ]]; then
-    log_info "清空已有目录: $IMAGE_DIR"
-    rm -rf "${IMAGE_DIR:?}"/*
-else
-    log_info "创建目录: $IMAGE_DIR"
-    mkdir -p "$IMAGE_DIR" || { log_error "创建 $IMAGE_DIR 失败"; exit 1; }
+    cd "$ANDROID_ROOT"
+
+    # installclean：清除上次编译的中间产物，避免残留文件导致镜像不一致
+    # 比 make clean 轻量（不删除工具链产物），整编标准流程
+    run_cmd "make installclean" make installclean
+
+    run_cmd "make -j${BUILD_JOBS}" make -j"${BUILD_JOBS}"
+
+    cd "$SCRIPT_DIR"
+    log_banner "Android 整编完成 ✓"
 fi
 
-# 复制 U-Boot 产物（仅 -U 编译时检查）
-if [[ $BUILD_UBOOT -eq 1 ]]; then
-    SPL_LOADER="$SCRIPT_DIR/u-boot/rk3588_spl_loader_v1.19.113.bin"
-    UBOOT_IMG="$SCRIPT_DIR/u-boot/uboot.img"
-    if [[ ! -f "$SPL_LOADER" ]]; then
-        log_error "未找到 SPL Loader: $SPL_LOADER"
-        log_error "请先使用 -U 编译 U-Boot"
-        exit 1
-    fi
-    if [[ ! -f "$UBOOT_IMG" ]]; then
-        log_error "未找到 uboot.img: $UBOOT_IMG"
-        log_error "请先使用 -U 编译 U-Boot"
-        exit 1
-    fi
-    run_cmd "复制 rk3588_spl_loader_v1.19.113.bin" cp "$SPL_LOADER" "$IMAGE_DIR/"
-    run_cmd "复制 uboot.img"                       cp "$UBOOT_IMG"  "$IMAGE_DIR/"
-    COLLECTED=$((COLLECTED + 1))
-fi
-
-# 复制内核产物（仅 -K 编译时）
-if [[ $BUILD_KERNEL -eq 1 ]]; then
-    # boot.img（[临时]步骤合成，可 fastboot flash boot 刷入验证）
-    KERNEL_BOOT_IMG="${KERNEL_SRC}/boot.img"
-    if [[ -f "$KERNEL_BOOT_IMG" ]]; then
-        run_cmd "复制 boot.img" cp "$KERNEL_BOOT_IMG" "$IMAGE_DIR/"
-        COLLECTED=$((COLLECTED + 1))
-    else
-        log_warn "boot.img 未生成（[临时]步骤已跳过），Image/ 中无 boot.img"
-    fi
-
-    # resource.img 已通过 mkbootimg --second 内嵌在 boot.img 中，无需单独收集。
-
-    # parameter.txt：eMMC 分区表（RKDevTool 整包烧录需要），来自工厂镜像
-    # 待整编完成后由 device/rockchip/rk3588/ATK_DLRK3588/parameter.txt 替代
-    FACTORY_PARAM="${HOME}/Factory-Image/parameter.txt"
-    if [[ -f "$FACTORY_PARAM" ]]; then
-        run_cmd "复制 parameter.txt（ATK_DLRK3588 分区表）" cp "$FACTORY_PARAM" "$IMAGE_DIR/"
-    else
-        log_warn "未找到 parameter.txt: $FACTORY_PARAM（RKDevTool 整包烧录时需要）"
-    fi
-fi
-
-if [[ $COLLECTED -eq 0 ]]; then
-    log_warn "无核心产物被收集（U-Boot / boot.img 均未生成）"
-fi
-log_ok "产物目录: $IMAGE_DIR"
-log_info "$(ls -lh "$IMAGE_DIR" 2>/dev/null || echo '（空）')"
+# ---------- 整理产物到 Image 目录 ----------
+do_mkimage
 log_banner "全部完成 ✓"
