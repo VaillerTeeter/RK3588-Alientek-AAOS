@@ -325,6 +325,109 @@ else
     log_info "跳过 $_QCOM_WIFI_MK（文件不存在）"
 fi
 
+# Fix #4: device/rockchip/common/device.mk 的 launcher 选择分支缺少 car 产品分支，
+#   导致 TARGET_BOARD_PLATFORM_PRODUCT=car 时落入 else（普通平板）分支，
+#   将 Launcher3QuickStep（手机版 launcher）打包进去。
+#   Launcher3QuickStep 在无 GMS 的 AAOS 环境下启动时，因 search_container_workspace
+#   布局中的 SearchFragment 找不到搜索服务而崩溃，导致桌面反复重启。
+#   修复：在 else 前插入 car 分支，继承 full_base.mk 但跳过 Launcher3QuickStep。
+#   CarLauncher 由 V_gatron_car.mk 中 include car.mk 引入。
+_DEVICE_MK="$ANDROID_ROOT/device/rockchip/common/device.mk"
+if [[ -f "$_DEVICE_MK" ]]; then
+    if grep -q "TARGET_BOARD_PLATFORM_PRODUCT.*car" "$_DEVICE_MK"; then
+        log_info "跳过 $_DEVICE_MK（car 分支已存在）"
+    elif grep -q "Normal tablet, add QuickStep" "$_DEVICE_MK"; then
+        python3 - <<'PYEOF'
+import sys
+with open('device/rockchip/common/device.mk', 'r') as f:
+    content = f.read()
+
+old = '''else
+# Normal tablet, add QuickStep for normal product only.
+  $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base.mk)
+  PRODUCT_PACKAGES += Launcher3QuickStep'''
+
+new = '''else ifeq ($(strip $(TARGET_BOARD_PLATFORM_PRODUCT)), car)
+  # For AAOS car products - CarLauncher is included via car.mk in V_gatron_car.mk
+  # Skip Launcher3QuickStep to avoid QuickstepLauncher crash on GMS-free AAOS builds
+  $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base.mk)
+else
+# Normal tablet, add QuickStep for normal product only.
+  $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base.mk)
+  PRODUCT_PACKAGES += Launcher3QuickStep'''
+
+if old in content:
+    content = content.replace(old, new, 1)
+    with open('device/rockchip/common/device.mk', 'w') as f:
+        f.write(content)
+    print('[FIXED] device/rockchip/common/device.mk: 已添加 car 产品分支（跳过 Launcher3QuickStep）')
+else:
+    print('[SKIP] device/rockchip/common/device.mk: 目标文本未匹配（已打过 patch 或文件内容已变更）')
+    sys.exit(1)
+PYEOF
+        if [[ $? -eq 0 ]]; then
+            log_ok "已修复 $_DEVICE_MK（car 分支已添加，跳过 Launcher3QuickStep）"
+        else
+            log_warn "修复 $_DEVICE_MK 失败，请手动检查文件"
+        fi
+    else
+        log_info "跳过 $_DEVICE_MK（目标文本不存在，可能已变更）"
+    fi
+else
+    log_info "跳过 $_DEVICE_MK（文件不存在）"
+fi
+
+# Fix #5: device/rockchip/common/modules/optimize.mk 对 rk3588 无条件设置
+#   dalvik.vm.dex2oat-threads=8，而 car_base.mk（由 car.mk 引入）也设置了
+#   dalvik.vm.dex2oat-threads=2。两者值不同，Android T 的 post_process_props
+#   把同一 key 的不同值赋值视为错误（error: found duplicate sysprop assignments）。
+#   修复：给 optimize.mk 中 dex2oat-threads 的赋值加 car 产品排除条件，
+#   car 产品使用 car_base.mk 的值（=2），非 car 产品保持原有行为（=8）。
+_OPTIMIZE_MK="$ANDROID_ROOT/device/rockchip/common/modules/optimize.mk"
+if [[ -f "$_OPTIMIZE_MK" ]]; then
+    if grep -q "TARGET_BOARD_PLATFORM_PRODUCT.*car" "$_OPTIMIZE_MK"; then
+        log_info "跳过 $_OPTIMIZE_MK（car 排除条件已存在）"
+    elif grep -q "dalvik.vm.dex2oat-threads=8" "$_OPTIMIZE_MK"; then
+        python3 - <<'PYEOF'
+import sys
+with open('device/rockchip/common/modules/optimize.mk', 'r') as f:
+    content = f.read()
+
+old = ('ifneq ($(filter rk3368 rk3588, $(strip $(TARGET_BOARD_PLATFORM))), )\n'
+       'PRODUCT_PROPERTY_OVERRIDES += \\\n'
+       '    dalvik.vm.boot-dex2oat-threads=8 \\\n'
+       '    dalvik.vm.dex2oat-threads=8')
+
+new = ('ifneq ($(filter rk3368 rk3588, $(strip $(TARGET_BOARD_PLATFORM))), )\n'
+       'PRODUCT_PROPERTY_OVERRIDES += \\\n'
+       '    dalvik.vm.boot-dex2oat-threads=8\n'
+       '# car_base.mk sets dalvik.vm.dex2oat-threads=2; skip here to avoid duplicate assignment\n'
+       'ifneq ($(strip $(TARGET_BOARD_PLATFORM_PRODUCT)), car)\n'
+       'PRODUCT_PROPERTY_OVERRIDES += \\\n'
+       '    dalvik.vm.dex2oat-threads=8\n'
+       'endif')
+
+if old in content:
+    content = content.replace(old, new, 1)
+    with open('device/rockchip/common/modules/optimize.mk', 'w') as f:
+        f.write(content)
+    print('[FIXED] optimize.mk: dex2oat-threads=8 已加 car 产品排除条件')
+else:
+    print('[SKIP] optimize.mk: 目标文本未匹配（已打过 patch 或文件内容已变更）')
+    sys.exit(1)
+PYEOF
+        if [[ $? -eq 0 ]]; then
+            log_ok "已修复 $_OPTIMIZE_MK（car 产品跳过 dex2oat-threads=8，由 car_base.mk 统一设置）"
+        else
+            log_warn "修复 $_OPTIMIZE_MK 失败，请手动检查文件"
+        fi
+    else
+        log_info "跳过 $_OPTIMIZE_MK（目标文本不存在，可能已变更）"
+    fi
+else
+    log_info "跳过 $_OPTIMIZE_MK（文件不存在）"
+fi
+
 # ---- 3. 加载编译工具链 ----
 log_step "[3/3] 加载 Android 编译工具链（envsetup + lunch）..."
 
