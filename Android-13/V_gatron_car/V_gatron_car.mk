@@ -10,6 +10,7 @@ include device/rockchip/common/BoardConfig.mk
 $(call inherit-product, device/rockchip/rk3588/device.mk)
 $(call inherit-product, device/rockchip/common/device.mk)
 $(call inherit-product, frameworks/native/build/tablet-10in-xhdpi-2048-dalvik-heap.mk)
+$(call inherit-product, packages/services/Car/car_product/build/car.mk)
 
 DEVICE_MANIFEST_FILE += device/rockchip/rk3588/V_gatron_car/manifest.xml
 DEVICE_PACKAGE_OVERLAYS += $(LOCAL_PATH)/../overlay
@@ -27,8 +28,9 @@ PRODUCT_AAPT_PREF_CONFIG := xhdpi
 PRODUCT_PROPERTY_OVERRIDES += ro.sf.lcd_density=340
 PRODUCT_PROPERTY_OVERRIDES += ro.wifi.sleep.power.down=true
 PRODUCT_PROPERTY_OVERRIDES += persist.wifi.sleep.delay.ms=0
-PRODUCT_PROPERTY_OVERRIDES += persist.bt.power.down=true
+PRODUCT_PROPERTY_OVERRIDES += persist.bt.power.down=false
 PRODUCT_PROPERTY_OVERRIDES += vendor.hwc.device.primary=DP
 
 PRODUCT_PACKAGES += \
-     modetest
+     modetest \
+     android.hardware.automotive.vehicle@V1-default-service
